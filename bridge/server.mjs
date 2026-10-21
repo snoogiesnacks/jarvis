@@ -27,6 +27,7 @@ import { readFile, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { openRemote, proxyError, vetTarget, PROXY_UA } from './net.mjs'
 import { probeUrl, renderPage } from './page.mjs'
+import { fishRequest, resolveFishModel, resolveFishVoiceId } from './fish.mjs'
 
 /**
  * Server-side secrets from .env.local.
@@ -491,21 +492,10 @@ const VOICE_ID = process.env.JARVIS_VOICE_ID ?? 'JBFqnCBsd6RMkjVDRZzb'
  * `reference_id`, and FISH_MODEL as its `model` header.
  */
 const fishKey = () => process.env.FISH_API_KEY || null
-// Blank counts as unset: an empty reference_id would not pick the default.
-const FISH_VOICE_ID =
-  process.env.FISH_VOICE_ID?.trim() || '14129c3e320149449d6bada6862f7338'
-// The free tier by default: a paid model has to be chosen on purpose. Fish
-// bills an empty or unknown model name as s2.1-pro, so anything that is not a
-// known id — blank, whitespace, a typo — falls back to free, with a warning.
-const FISH_MODELS = ['s2.1-pro-free', 's2.1-pro', 's2-pro', 's1', 'drama-3']
-const FISH_MODEL = (() => {
-  const want = (process.env.FISH_MODEL ?? '').trim()
-  if (FISH_MODELS.includes(want)) return want
-  if (want) {
-    console.warn(`[jarvis] unknown FISH_MODEL "${want}" — using s2.1-pro-free`)
-  }
-  return 's2.1-pro-free'
-})()
+const FISH_VOICE_ID = resolveFishVoiceId(process.env.FISH_VOICE_ID)
+const FISH_MODEL = resolveFishModel(process.env.FISH_MODEL, (m) =>
+  console.warn(`[jarvis] ${m}`),
+)
 
 /** Which cloud voice /tts will use, or null for the browser's own. */
 const ttsProvider = () =>
@@ -513,23 +503,14 @@ const ttsProvider = () =>
 
 /** One line of speech from Fish Audio, as a streaming mp3 response. */
 const fishSpeech = (text) =>
-  fetch('https://api.fish.audio/v1/tts', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${fishKey()}`,
-      'content-type': 'application/json',
+  fetch(
+    ...fishRequest({
+      key: fishKey(),
       model: FISH_MODEL,
-    },
-    body: JSON.stringify({
+      voiceId: FISH_VOICE_ID,
       text,
-      reference_id: FISH_VOICE_ID,
-      format: 'mp3',
-      mp3_bitrate: 64,
-      // 'balanced' is Fish's low-latency mode — the same trade the
-      // ElevenLabs path makes with Flash.
-      latency: 'balanced',
     }),
-  })
+  )
 
 /** One line of speech from ElevenLabs, as a streaming mp3 response. */
 const elevenSpeech = (text) =>

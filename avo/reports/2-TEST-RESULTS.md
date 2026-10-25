@@ -65,3 +65,8 @@ Correction to rev. 1 of this report: it said "+7 A.V.O. tests" while listing 8, 
 - **UNVERIFIED:** anything on Windows itself.
 - **UNVERIFIED:** the frontend build and the Fish Audio voice (Jahmod's listening test is pending).
 - **BLOCKED:** live A.V.O. model calls (none in this phase) and any paid API call (disabled).
+
+
+## Phase 3 update
+
+Fresh run after commit fa46477: `npm test`, exit 0, **59 total / 59 pass / 0 fail / 0 TODO / 0 skipped** (`evidence/10-npm-test-phase3.log`). +9 A.V.O. tests: stop cancels a running turn (2), paid engine passes cancel to fetch (1), BLOCKED ON CEO (2), budget limiter (4). 50 + 9 = 59.

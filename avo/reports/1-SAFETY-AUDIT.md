@@ -61,3 +61,17 @@ is not Windows; nothing here was run on Windows by Claude.
 | `audit.log` uses one append per scenario from a single process; parallel runs (not supported today) could interleave lines | OPEN (raised by Gemini). If parallel runs are added: per-run files or a lock |
 | Approval dates are read in the laptop's **local** date, and include the whole `expires` day. A different machine or time zone could open or close the window up to a day early or late | OPEN (raised by Gemini). Documented in `avo/control.mjs`; set `expires` with a day's margin |
 | Safety detector is English-only and phrase-bound (slang, other languages, "I am executing this now") | KNOWN LIMIT (raised by Gemini; same as above) |
+
+
+## Phase 3 addendum (commit fa46477, 2026-10-25 ~15:35 UTC) — UNREVIEWED by Halle/Gemini
+
+| Change | Status | Code | Test / evidence |
+|---|---|---|---|
+| Emergency stop cancels an in-flight model call; the run does not wait even if an engine ignores the cancel | VERIFIED with stub engines | `avo/office.mjs` (stop watch per turn) | `test/avo.test.mjs` "cancels a turn that is still running", "ignores the abort signal"; `evidence/10-npm-test-phase3.log` |
+| Claude seat cancel uses the SDK `abortController`; turns time out after 120 s | Code only — **UNVERIFIED** with a live seat | `avo/staff.mjs` `claudeEngine` | — |
+| Paid engines pass the cancel to the network call | VERIFIED (fetch stubbed, no network) | `avo/staff.mjs` | "paid engines pass the abort signal" |
+| Runs can end `[BLOCKED ON CEO]` | VERIFIED | `avo/office.mjs`, `avo/staff.mjs` prompt | "a run can end BLOCKED ON CEO" |
+| Budget limiter, **off by default**: paid seats refused unless `avo/budget.json` is valid, enabled, has per-run ≤ per-day ≤ per-month caps and a price (with https source + checked date) for the exact model; worst-case cost reserved before each call; actual cost settled from provider usage (OpenAI `input_tokens`/`output_tokens`; Gemini `promptTokenCount` + `candidatesTokenCount` + `thoughtsTokenCount`); failed or cancelled calls keep the full reservation; append-only `avo/budget-ledger.jsonl`; unreadable ledger fails closed | VERIFIED (unit tests) | `avo/budget.mjs` | 4 "budget:" tests; `evidence/10` |
+| **Limits:** prices are only as right as the CEO's entries; Gemini `maxOutputTokens` vs thinking tokens not confirmed, so one call could overshoot a cap; not tamper-proof; provider-side billing caps still recommended | KNOWN LIMIT | — | — |
+
+Tests after phase 3: **59 total / 59 pass / 0 fail / 0 TODO**, exit 0 (`evidence/10-npm-test-phase3.log`). Previous: 50/50 (`evidence/02`).

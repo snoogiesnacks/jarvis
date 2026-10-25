@@ -30,3 +30,11 @@
 3. End runs with `[BLOCKED ON CEO]` instead of burning turns on a pending decision.
 4. Daily decision digest generated from `audit.log`.
 5. A way to give Gemini read-only evidence, for example these report files pasted or uploaded by Jahmod.
+
+
+## Phase 3 update (fa46477)
+
+- Blocker #5 (budget limiter): BUILT, off by default, unit-tested. Paid seats still REQUIRE CEO: an `approvals.json` entry per engine **and** a valid `budget.json` with real prices, plus provider-side billing caps.
+- Emergency stop now cancels in-flight calls (live Claude seat: UNVERIFIED).
+- `[BLOCKED ON CEO]` outcome added.
+- Open: Halle/Gemini review of phase 3; live-seat cancel check.

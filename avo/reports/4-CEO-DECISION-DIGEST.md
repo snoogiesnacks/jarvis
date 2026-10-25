@@ -30,3 +30,9 @@ git commit -m "A.V.O. phase 2: fail-closed network gate, CEO approval gate, emer
 ```
 
 The sandbox also lists about 60 other files as modified. Those are line endings only (Windows vs Linux checkout) and should not appear on your PC.
+
+
+## Update after phase 3
+
+- `commit-phase2`: DONE (1c1daa9, pushed by Jahmod). Phase 3 committed as fa46477, **not pushed**: `git push fork dev/cto-007-jarvis`.
+- `paid-api-openai` / `paid-api-gemini`: the budget limiter now exists (off). Still REQUIRES CEO: approval entries, `avo/budget.json` with caps and current prices (source + date), and billing caps in the OpenAI / Google consoles.

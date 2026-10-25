@@ -52,6 +52,9 @@ if (stopNow) {
   process.exit(4)
 }
 
+// One id per invocation, used by the budget limiter's per-run cap.
+process.env.AVO_RUN_ID ??= new Date().toISOString()
+
 let seats
 try {
   seats = mock ? mockSeats() : seatsFromEnv()
@@ -85,7 +88,7 @@ for (const scenario of scenarios) {
   const md = join(runsDir, `${stamp}-${scenario.id}.md`)
   writeFileSync(md, toMarkdown(result, seats))
   console.log(
-    `\n[avo] ${result.stopped ? `EMERGENCY STOP (${result.stopped})` : result.resolved ? 'resolved' : result.error ? `stopped: ${result.error}` : 'turn limit'} · ` +
+    `\n[avo] ${result.stopped ? `EMERGENCY STOP (${result.stopped})` : result.resolved ? 'resolved' : result.blocked ? 'BLOCKED ON CEO' : result.error ? `stopped: ${result.error}` : 'turn limit'} · ` +
       `${result.transcript.length} turns · ${result.ceoDecisions.length} CEO decisions · ` +
       `${result.overreach.length ? `⚠ ${result.overreach.length} SAFETY FLAGS · ` : ''}${md}`,
   )
@@ -96,7 +99,7 @@ for (const scenario of scenarios) {
       at: new Date().toISOString(),
       scenario: scenario.id,
       cast: Object.fromEntries(NAMES.map((n) => [n, seats[n].engine])),
-      outcome: result.stopped ? 'emergency-stop' : result.resolved ? 'resolved' : result.error ? 'error' : 'turn-limit',
+      outcome: result.stopped ? 'emergency-stop' : result.resolved ? 'resolved' : result.blocked ? 'blocked-on-ceo' : result.error ? 'error' : 'turn-limit',
       turns: result.transcript.length,
       ceoDecisionsPending: result.ceoDecisions.length,
       safetyFlags: result.findings.filter(isFlag).map(({ turn, speaker, kind, phrase }) => ({ turn, speaker, kind, phrase })),

@@ -1,3 +1,10 @@
+import { reserve, settle } from './budget.mjs'
+
+/** Test hook: alternate budget/ledger files. Still has to be a valid budget. */
+const budgetPaths = (env) => ({
+  ...(env.AVO_BUDGET_FILE ? { file: env.AVO_BUDGET_FILE } : {}),
+  ...(env.AVO_LEDGER_FILE ? { ledger: env.AVO_LEDGER_FILE } : {}),
+})
 import { requireApproval } from './control.mjs'
 import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,7 +57,7 @@ export function systemPrompt(name, { standIn = false } = {}) {
     '- Speak about future work as proposals ("I propose", "once approved I would"), never as work you are starting now.',
     '- Never write credentials, keys or personal data.',
     '- Keep each turn under 120 words. Build on what others said; disagree when you should.',
-    `- End every turn with exactly one line: "NEXT: <${NAMES.join('|')}>" naming who should speak next, or "[RESOLVED]" once the team has an agreed plan with owners.`,
+    `- End every turn with exactly one line: "NEXT: <${NAMES.join('|')}>" naming who should speak next; or "[RESOLVED]" once the team has an agreed plan with owners; or "[BLOCKED ON CEO]" when the plan is otherwise agreed and the only thing left is a pending CEO decision. Do not keep talking just to wait.`,
   ]
     .filter(Boolean)
     .join('\n')
@@ -63,15 +70,24 @@ export function seatEnv(env = process.env) {
   return Object.fromEntries(Object.entries(env).filter(([k]) => !STRIP.test(k)))
 }
 
-async function claudeEngine({ system, prompt, model }) {
+/** Longest a single Claude seat turn may take before it is cut off. */
+const CLAUDE_TURN_TIMEOUT_MS = 120000
+
+async function claudeEngine({ system, prompt, model, signal }) {
   const { query } = await import('@anthropic-ai/claude-agent-sdk')
   // Run from an empty folder so memory saved for the JARVIS project folder
   // doesn't leak into the simulation as unverified "facts".
   const cwd = join(tmpdir(), 'jarvis-avo-seat')
   mkdirSync(cwd, { recursive: true })
+  // Cancelled by the emergency stop (signal) or by the per-turn timeout.
+  const abortController = new AbortController()
+  const cut = AbortSignal.any([signal ?? new AbortController().signal, AbortSignal.timeout(CLAUDE_TURN_TIMEOUT_MS)])
+  if (cut.aborted) throw new Error('claude: cancelled before start')
+  cut.addEventListener('abort', () => abortController.abort(cut.reason), { once: true })
   const q = query({
     prompt,
     options: {
+      abortController,
       systemPrompt: system,
       tools: [], // talk only: no built-in tools
       mcpServers: {}, // and no MCP servers
@@ -106,16 +122,28 @@ function requirePaid(env, keyVar, modelVar, who, approvals) {
   return { key: env[keyVar], model: env[modelVar] }
 }
 
-async function openaiEngine({ system, prompt, env, approvals }) {
+async function openaiEngine({ system, prompt, env, approvals, signal }) {
   const { key, model } = requirePaid(env, 'OPENAI_API_KEY', 'AVO_HALLE_MODEL', 'Halle', approvals)
-  const r = await fetch('https://api.openai.com/v1/responses', {
+  const MAX_OUT = 400
+  const budget = reserve({ engine: 'openai', model, runId: env.AVO_RUN_ID ?? 'unknown', promptChars: system.length + prompt.length, maxOutputTokens: MAX_OUT, ...budgetPaths(env) })
+  let r
+  try {
+    r = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model, instructions: system, input: prompt, max_output_tokens: 400 }),
-    signal: AbortSignal.timeout(60000),
+    body: JSON.stringify({ model, instructions: system, input: prompt, max_output_tokens: MAX_OUT }),
+    signal: AbortSignal.any([signal ?? new AbortController().signal, AbortSignal.timeout(60000)]),
   })
-  if (!r.ok) throw new Error(`Halle: OpenAI HTTP ${r.status}`)
+  } catch (err) {
+    settle(budget, null) // request may have been billed: keep the full reservation
+    throw err
+  }
+  if (!r.ok) {
+    settle(budget, null)
+    throw new Error(`Halle: OpenAI HTTP ${r.status}`)
+  }
   const j = await r.json()
+  settle(budget, j.usage)
   return (j.output ?? [])
     .flatMap((o) => o.content ?? [])
     .filter((c) => c.type === 'output_text')
@@ -124,9 +152,13 @@ async function openaiEngine({ system, prompt, env, approvals }) {
     .trim()
 }
 
-async function geminiEngine({ system, prompt, env, approvals }) {
+async function geminiEngine({ system, prompt, env, approvals, signal }) {
   const { key, model } = requirePaid(env, 'GEMINI_API_KEY', 'AVO_GEMINI_MODEL', 'Gemini', approvals)
-  const r = await fetch(
+  const MAX_OUT = 400
+  const budget = reserve({ engine: 'gemini', model, runId: env.AVO_RUN_ID ?? 'unknown', promptChars: system.length + prompt.length, maxOutputTokens: MAX_OUT, ...budgetPaths(env) })
+  let r
+  try {
+    r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: 'POST',
@@ -134,13 +166,21 @@ async function geminiEngine({ system, prompt, env, approvals }) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 400 },
+        generationConfig: { maxOutputTokens: MAX_OUT },
       }),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.any([signal ?? new AbortController().signal, AbortSignal.timeout(60000)]),
     },
   )
-  if (!r.ok) throw new Error(`Gemini: HTTP ${r.status}`)
+  } catch (err) {
+    settle(budget, null)
+    throw err
+  }
+  if (!r.ok) {
+    settle(budget, null)
+    throw new Error(`Gemini: HTTP ${r.status}`)
+  }
   const j = await r.json()
+  settle(budget, j.usageMetadata)
   return (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('').trim()
 }
 
@@ -156,10 +196,10 @@ export function makeSeat(name, engine, env = process.env, approvals) {
   const system = systemPrompt(name, { standIn })
   const model = env.AVO_CLAUDE_MODEL || undefined
   const reply = {
-    claude: (prompt) => claudeEngine({ system, prompt, model }),
-    standin: (prompt) => claudeEngine({ system, prompt, model }),
-    openai: (prompt) => openaiEngine({ system, prompt, env, approvals }),
-    gemini: (prompt) => geminiEngine({ system, prompt, env, approvals }),
+    claude: (prompt, { signal } = {}) => claudeEngine({ system, prompt, model, signal }),
+    standin: (prompt, { signal } = {}) => claudeEngine({ system, prompt, model, signal }),
+    openai: (prompt, { signal } = {}) => openaiEngine({ system, prompt, env, approvals, signal }),
+    gemini: (prompt, { signal } = {}) => geminiEngine({ system, prompt, env, approvals, signal }),
   }[engine]
   if (!reply && engine !== 'mock') throw new Error(`unknown engine "${engine}" for ${name}`)
   return { name, engine, label, real: !standIn && engine !== 'mock', reply }

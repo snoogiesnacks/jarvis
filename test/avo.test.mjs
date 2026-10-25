@@ -6,6 +6,7 @@ import { mockSeats } from '../avo/mock.mjs'
 import { SCENARIOS } from '../avo/scenarios.mjs'
 import { stopRequested, loadApprovals, isApproved, requireApproval } from '../avo/control.mjs'
 import { seatEnv } from '../avo/staff.mjs'
+import { loadBudget, reserve, settle, release, committed, tokensFromUsage } from '../avo/budget.mjs'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { classify, scan, isFlag } from '../avo/safety.mjs'
@@ -253,4 +254,135 @@ test('runner refuses to start under emergency stop and exits 4', () => {
   })
   assert.equal(r.status, 4)
   assert.match(r.stderr, /EMERGENCY STOP/)
+})
+
+test('emergency stop cancels a turn that is still running, and the run does not wait for it', async () => {
+  const seats = mockSeats({ resolveAt: 99 })
+  let sawAbort = false
+  seats[sc.opener].reply = (prompt, { signal }) =>
+    new Promise((resolve, reject) => {
+      const t = setTimeout(() => resolve('finished anyway\nNEXT: Claude'), 10000)
+      signal.addEventListener('abort', () => { sawAbort = true; clearTimeout(t); reject(signal.reason) })
+    })
+  let stopAfter = Date.now() + 150
+  const started = Date.now()
+  const r = await runScenario({ scenario: sc, seats, stopPollMs: 20, shouldStop: () => (Date.now() > stopAfter ? 'STOP file' : null) })
+  assert.ok(Date.now() - started < 2000, 'run ended promptly')
+  assert.equal(sawAbort, true, 'the in-flight call received the abort signal')
+  assert.match(r.stopped, /STOP file .*mid-call/)
+  assert.equal(r.transcript.length, 0)
+})
+
+test('emergency stop still ends the run when an engine ignores the abort signal', async () => {
+  const seats = mockSeats({ resolveAt: 99 })
+  seats[sc.opener].reply = () => new Promise(() => {}) // never settles, ignores signal
+  let stopAfter = Date.now() + 100
+  const r = await runScenario({ scenario: sc, seats, stopPollMs: 20, shouldStop: () => (Date.now() > stopAfter ? 'AVO_STOP' : null) })
+  assert.match(r.stopped, /AVO_STOP .*mid-call/)
+})
+
+test('paid engines pass the abort signal to the network call (fetch stubbed, no network)', async () => {
+  const realFetch = globalThis.fetch
+  let calledUrl
+  globalThis.fetch = (url, opts) =>
+    new Promise((_, reject) => {
+      calledUrl = url
+      opts.signal.addEventListener('abort', () => reject(opts.signal.reason))
+    })
+  try {
+    const { budgetFile, ledgerFile } = tempBudget()
+    const env = { AVO_ALLOW_PAID: '1', OPENAI_API_KEY: 'k'.repeat(20), AVO_HALLE_MODEL: 'test-model', AVO_BUDGET_FILE: budgetFile, AVO_LEDGER_FILE: ledgerFile, AVO_RUN_ID: 'r1' }
+    const approved = [{ id: 'paid-api-openai', approvedBy: 'Jahmod', date: '2000-01-01', expires: '2999-12-31' }]
+    const halle = makeSeat('Halle', 'openai', env, approved)
+    const ac = new AbortController()
+    const p = halle.reply('hi', { signal: ac.signal })
+    ac.abort(new Error('stop'))
+    await assert.rejects(p, /stop/)
+    assert.match(calledUrl, /openai/)
+    // A cancelled call keeps its full reservation as spent (conservative).
+    const kinds = readFileSync(ledgerFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l).kind)
+    assert.deepEqual(kinds, ['reserve', 'settle'])
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test('a run can end BLOCKED ON CEO instead of burning turns', async () => {
+  const seats = mockSeats({ resolveAt: 99 })
+  seats.Claude.reply = async () => 'Plan agreed except the field list.\nCEO DECISION: confirm guest fields\n[BLOCKED ON CEO]'
+  const r = await runScenario({ scenario: { ...sc, opener: 'Claude' }, seats })
+  assert.equal(r.blocked, true)
+  assert.equal(r.resolved, false)
+  assert.equal(r.transcript.length, 1)
+  assert.match(toMarkdown(r, seats), /Outcome: BLOCKED ON CEO/)
+})
+
+test('agents are told they may end BLOCKED ON CEO', () => {
+  assert.match(systemPrompt('Gemini'), /\[BLOCKED ON CEO\]/)
+})
+
+function tempBudget(caps = { perRun: 0.01, perDay: 0.02, perMonth: 0.05 }) {
+  const dir = mkdtempSync(join(tmpdir(), 'avo-budget-'))
+  const budgetFile = join(dir, 'budget.json')
+  const ledgerFile = join(dir, 'ledger.jsonl')
+  writeFileSync(budgetFile, JSON.stringify({
+    enabled: true, currency: 'USD', caps,
+    prices: {
+      'openai:test-model': { inputPerMTok: 1, outputPerMTok: 4, source: 'https://example.com/pricing', checked: '2026-10-25' },
+      'gemini:test-model': { inputPerMTok: 1, outputPerMTok: 4, source: 'https://example.com/pricing', checked: '2026-10-25' },
+    },
+  }))
+  return { budgetFile, ledgerFile }
+}
+
+test('budget: paid seats are off unless a valid, enabled budget.json exists', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'avo-b-'))
+  const f = join(dir, 'budget.json')
+  assert.match(loadBudget(f).why, /off by default/)
+  const bad = [
+    [{ enabled: false }, /enabled/],
+    [{ enabled: true, currency: 'EUR' }, /currency/],
+    [{ enabled: true, currency: 'USD', caps: { perRun: 1, perDay: 0, perMonth: 5 } }, /positive/],
+    [{ enabled: true, currency: 'USD', caps: { perRun: 5, perDay: 1, perMonth: 9 } }, /perRun <= perDay/],
+    [{ enabled: true, currency: 'USD', caps: { perRun: 1, perDay: 2, perMonth: 3 }, prices: { 'openai:m': { inputPerMTok: 1, outputPerMTok: 1 } } }, /source/],
+    [{ enabled: true, currency: 'USD', caps: { perRun: 1, perDay: 2, perMonth: 3 }, prices: { 'x:m': {} } }, /bad price key/],
+  ]
+  for (const [cfg, why] of bad) {
+    writeFileSync(f, JSON.stringify(cfg))
+    assert.match(loadBudget(f).why, why)
+  }
+})
+
+test('budget: a call is refused before it is made when its worst case would pass a cap', () => {
+  const { budgetFile, ledgerFile } = tempBudget({ perRun: 0.0021, perDay: 0.003, perMonth: 0.01 })
+  const args = { engine: 'openai', model: 'test-model', runId: 'r1', promptChars: 300, maxOutputTokens: 400, file: budgetFile, ledger: ledgerFile }
+  // worst case: 100 in * $1/M + 400 out * $4/M = $0.0017
+  const r1 = reserve(args)
+  assert.ok(Math.abs(r1.estimate - 0.0017) < 1e-9)
+  assert.throws(() => reserve(args), /per run cap/) // 0.0017 + 0.0017 > 0.002
+  settle(r1, { input_tokens: 100, output_tokens: 50 }) // actual $0.0003
+  const r2 = reserve(args) // run now at 0.0003 + 0.0017 = 0.0020: allowed
+  release(r2, 'test')
+  assert.throws(() => reserve({ ...args, runId: 'r2', maxOutputTokens: 1000 }), /cap .* would be exceeded/) // 0.0003 + 0.0041 > 0.003
+})
+
+test('budget: unknown model, missing max output, or unreadable ledger fail closed', () => {
+  const { budgetFile, ledgerFile } = tempBudget()
+  const base = { engine: 'openai', model: 'test-model', runId: 'r', promptChars: 10, maxOutputTokens: 10, file: budgetFile, ledger: ledgerFile }
+  assert.throws(() => reserve({ ...base, model: 'other' }), /no price for openai:other/)
+  assert.throws(() => reserve({ ...base, maxOutputTokens: 0 }), /maxOutputTokens/)
+  writeFileSync(ledgerFile, '{ broken')
+  assert.throws(() => reserve(base), /ledger unreadable/)
+})
+
+test('budget: provider usage maps to billable tokens (reasoning/thinking counted as output)', () => {
+  assert.deepEqual(tokensFromUsage('openai', { input_tokens: 75, output_tokens: 1186, output_tokens_details: { reasoning_tokens: 1024 } }), { input: 75, output: 1186 })
+  assert.deepEqual(tokensFromUsage('gemini', { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 30 }), { input: 10, output: 50 })
+  assert.equal(tokensFromUsage('openai', {}), null)
+  // Missing usage: settle keeps the full reservation as the cost.
+  const { budgetFile, ledgerFile } = tempBudget()
+  const r = reserve({ engine: 'gemini', model: 'test-model', runId: 'r', promptChars: 30, maxOutputTokens: 100, file: budgetFile, ledger: ledgerFile })
+  assert.equal(settle(r, undefined), r.estimate)
+  const entries = readFileSync(ledgerFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+  assert.ok(Math.abs(committed(entries) - r.estimate) < 1e-12)
 })

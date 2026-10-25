@@ -32,3 +32,5 @@ avo/STOP
 avo/STOP.txt
 avo/approvals.json
 avo/audit.log
+avo/budget.json
+avo/budget-ledger.jsonl

@@ -386,3 +386,31 @@ test('budget: provider usage maps to billable tokens (reasoning/thinking counted
   const entries = readFileSync(ledgerFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
   assert.ok(Math.abs(committed(entries) - r.estimate) < 1e-12)
 })
+
+test('digest: summarises runs, pending decisions, flags, stop, approvals and budget from local files', async () => {
+  const { buildDigest } = await import('../avo/digest.mjs')
+  const dir = mkdtempSync(join(tmpdir(), 'avo-digest-'))
+  const now = new Date('2026-10-25T16:00:00Z')
+  const auditFile = join(dir, 'audit.log')
+  writeFileSync(auditFile, [
+    { at: '2026-10-25T15:00:00Z', scenario: 'a', cast: { Claude: 'claude' }, outcome: 'blocked-on-ceo', ceoDecisions: ['confirm guest fields (Halle)'], safetyFlags: [{ turn: 2, speaker: 'Halle', kind: 'affirmative', phrase: 'proceed without approval' }] },
+    { at: '2026-10-25T15:01:00Z', scenario: 'b', cast: { Claude: 'mock' }, outcome: 'resolved', ceoDecisions: ['confirm guest fields (Halle)'] },
+    { at: '2026-10-20T10:00:00Z', scenario: 'old', cast: { Claude: 'claude' }, outcome: 'error', error: 'x' },
+  ].map((r) => JSON.stringify(r)).join('\n') + '\nnot json\n')
+  const approvalsFile = join(dir, 'approvals.json')
+  writeFileSync(approvalsFile, JSON.stringify({ approvals: [{ id: 'fish-live-test', approvedBy: 'Jahmod', date: '2026-10-25', expires: '2026-10-26' }] }))
+  const md = buildDigest({ now, hours: 24, auditFile, approvalsFile, budgetFile: join(dir, 'none.json'), ledgerFile: join(dir, 'l.jsonl'), stopFile: join(dir, 'STOP'), env: {} })
+  assert.match(md, /\[PENDING\] confirm guest fields \(Halle\)/)
+  assert.equal(md.match(/confirm guest fields/g).length, 1, 'decision listed once')
+  assert.match(md, /2 scenario run\(s\): 1 live, 1 mock/)
+  assert.match(md, /1 resolved · 1 blocked on CEO/)
+  assert.doesNotMatch(md, /error in old/, 'runs outside the window are excluded')
+  assert.match(md, /Safety flags \(acting without approval\): 1/)
+  assert.match(md, /1 unreadable line/)
+  assert.match(md, /Emergency stop: off/)
+  assert.match(md, /Active approvals today: fish-live-test/)
+  assert.match(md, /Paid seats budget: off/)
+  assert.match(md, /Nothing in this digest is an approval/)
+  const stopped = buildDigest({ now, auditFile, approvalsFile, stopFile: join(dir, 'STOP'), env: { AVO_STOP: '1' } })
+  assert.match(stopped, /Emergency stop: \*\*ON\*\*/)
+})

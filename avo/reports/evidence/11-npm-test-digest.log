@@ -1,0 +1,376 @@
+# command: npm test   started: 2026-10-25T15:39:51Z
+# exit code: 0
+
+> jarvis@0.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: conversation runs on its own until resolved
+ok 1 - conversation runs on its own until resolved
+  ---
+  duration_ms: 7.866247
+  type: 'test'
+  ...
+# Subtest: turn limit stops a conversation that never resolves
+ok 2 - turn limit stops a conversation that never resolves
+  ---
+  duration_ms: 1.242489
+  type: 'test'
+  ...
+# Subtest: speakers follow NEXT: hand-offs and never answer themselves
+ok 3 - speakers follow NEXT: hand-offs and never answer themselves
+  ---
+  duration_ms: 0.707456
+  type: 'test'
+  ...
+# Subtest: an engine failure stops the run and is reported, not hidden
+ok 4 - an engine failure stops the run and is reported, not hidden
+  ---
+  duration_ms: 0.555351
+  type: 'test'
+  ...
+# Subtest: CEO decisions are collected once each
+ok 5 - CEO decisions are collected once each
+  ---
+  duration_ms: 1.688816
+  type: 'test'
+  ...
+# Subtest: secrets are redacted from replies and errors
+ok 6 - secrets are redacted from replies and errors
+  ---
+  duration_ms: 0.532458
+  type: 'test'
+  ...
+# Subtest: stand-ins are labelled and told they are not the real agent
+ok 7 - stand-ins are labelled and told they are not the real agent
+  ---
+  duration_ms: 0.238687
+  type: 'test'
+  ...
+# Subtest: default cast: real Claude, stand-ins for Halle and Gemini
+ok 8 - default cast: real Claude, stand-ins for Halle and Gemini
+  ---
+  duration_ms: 0.183153
+  type: 'test'
+  ...
+# Subtest: paid engines refuse to run without explicit approval, key and model
+ok 9 - paid engines refuse to run without explicit approval, key and model
+  ---
+  duration_ms: 1.778354
+  type: 'test'
+  ...
+# Subtest: transcript says it is a simulation and lists the cast
+ok 10 - transcript says it is a simulation and lists the cast
+  ---
+  duration_ms: 1.326497
+  type: 'test'
+  ...
+# Subtest: agents are told they can only talk
+ok 11 - agents are told they can only talk
+  ---
+  duration_ms: 0.282079
+  type: 'test'
+  ...
+# Subtest: agents are told silence from the CEO never triggers an action
+ok 12 - agents are told silence from the CEO never triggers an action
+  ---
+  duration_ms: 0.288932
+  type: 'test'
+  ...
+# Subtest: acting on assumed approval is flagged in the result and transcript
+ok 13 - acting on assumed approval is flagged in the result and transcript
+  ---
+  duration_ms: 1.635175
+  type: 'test'
+  ...
+# Subtest: emergency stop halts a run before the next turn
+ok 14 - emergency stop halts a run before the next turn
+  ---
+  duration_ms: 0.718918
+  type: 'test'
+  ...
+# Subtest: emergency stop: STOP file or AVO_STOP=1 is detected; absence is not
+ok 15 - emergency stop: STOP file or AVO_STOP=1 is detected; absence is not
+  ---
+  duration_ms: 1.729292
+  type: 'test'
+  ...
+# Subtest: approvals come only from a well-formed, dated, unexpired CEO entry
+ok 16 - approvals come only from a well-formed, dated, unexpired CEO entry
+  ---
+  duration_ms: 2.85357
+  type: 'test'
+  ...
+# Subtest: paid engines refuse even with AVO_ALLOW_PAID=1, key and model, unless the CEO file approves
+ok 17 - paid engines refuse even with AVO_ALLOW_PAID=1, key and model, unless the CEO file approves
+  ---
+  duration_ms: 0.337953
+  type: 'test'
+  ...
+# Subtest: agent text claiming approval is never treated as approval
+ok 18 - agent text claiming approval is never treated as approval
+  ---
+  duration_ms: 0.456556
+  type: 'test'
+  ...
+# Subtest: safety detector: affirmative and questions flag; negated, quoted and safe do not
+ok 19 - safety detector: affirmative and questions flag; negated, quoted and safe do not
+  ---
+  duration_ms: 2.150622
+  type: 'test'
+  ...
+# Subtest: known limit: plain statements of action with no approval wording are not detected
+ok 20 - known limit: plain statements of action with no approval wording are not detected
+  ---
+  duration_ms: 0.123892
+  type: 'test'
+  ...
+# Subtest: regression: the 10:37 run (old rules) is flagged for acting on assumed approval
+ok 21 - regression: the 10:37 run (old rules) is flagged for acting on assumed approval
+  ---
+  duration_ms: 6.476291
+  type: 'test'
+  ...
+# Subtest: regression: the 10:41 run (new rules) raises no false safety flag
+ok 22 - regression: the 10:41 run (new rules) raises no false safety flag
+  ---
+  duration_ms: 9.08909
+  type: 'test'
+  ...
+# Subtest: Claude seats run without any API keys in their environment
+ok 23 - Claude seats run without any API keys in their environment
+  ---
+  duration_ms: 0.412112
+  type: 'test'
+  ...
+# Subtest: runner refuses to start under emergency stop and exits 4
+ok 24 - runner refuses to start under emergency stop and exits 4
+  ---
+  duration_ms: 80.501558
+  type: 'test'
+  ...
+# Subtest: emergency stop cancels a turn that is still running, and the run does not wait for it
+ok 25 - emergency stop cancels a turn that is still running, and the run does not wait for it
+  ---
+  duration_ms: 151.241265
+  type: 'test'
+  ...
+# Subtest: emergency stop still ends the run when an engine ignores the abort signal
+ok 26 - emergency stop still ends the run when an engine ignores the abort signal
+  ---
+  duration_ms: 101.920031
+  type: 'test'
+  ...
+# Subtest: paid engines pass the abort signal to the network call (fetch stubbed, no network)
+ok 27 - paid engines pass the abort signal to the network call (fetch stubbed, no network)
+  ---
+  duration_ms: 3.689306
+  type: 'test'
+  ...
+# Subtest: a run can end BLOCKED ON CEO instead of burning turns
+ok 28 - a run can end BLOCKED ON CEO instead of burning turns
+  ---
+  duration_ms: 0.508894
+  type: 'test'
+  ...
+# Subtest: agents are told they may end BLOCKED ON CEO
+ok 29 - agents are told they may end BLOCKED ON CEO
+  ---
+  duration_ms: 0.123481
+  type: 'test'
+  ...
+# Subtest: budget: paid seats are off unless a valid, enabled budget.json exists
+ok 30 - budget: paid seats are off unless a valid, enabled budget.json exists
+  ---
+  duration_ms: 2.982411
+  type: 'test'
+  ...
+# Subtest: budget: a call is refused before it is made when its worst case would pass a cap
+ok 31 - budget: a call is refused before it is made when its worst case would pass a cap
+  ---
+  duration_ms: 2.87014
+  type: 'test'
+  ...
+# Subtest: budget: unknown model, missing max output, or unreadable ledger fail closed
+ok 32 - budget: unknown model, missing max output, or unreadable ledger fail closed
+  ---
+  duration_ms: 1.608456
+  type: 'test'
+  ...
+# Subtest: budget: provider usage maps to billable tokens (reasoning/thinking counted as output)
+ok 33 - budget: provider usage maps to billable tokens (reasoning/thinking counted as output)
+  ---
+  duration_ms: 0.994294
+  type: 'test'
+  ...
+# Subtest: digest: summarises runs, pending decisions, flags, stop, approvals and budget from local files
+ok 34 - digest: summarises runs, pending decisions, flags, stop, approvals and budget from local files
+  ---
+  duration_ms: 9.561084
+  type: 'test'
+  ...
+# Subtest: model defaults to the free tier when unset or blank, without warning
+ok 35 - model defaults to the free tier when unset or blank, without warning
+  ---
+  duration_ms: 1.426394
+  type: 'test'
+  ...
+# Subtest: every known model id is accepted as written (surrounding space trimmed)
+ok 36 - every known model id is accepted as written (surrounding space trimmed)
+  ---
+  duration_ms: 0.199224
+  type: 'test'
+  ...
+# Subtest: an unknown model falls back to free and warns once
+ok 37 - an unknown model falls back to free and warns once
+  ---
+  duration_ms: 0.200105
+  type: 'test'
+  ...
+# Subtest: the free model is the first listed and is never the paid default name
+ok 38 - the free model is the first listed and is never the paid default name
+  ---
+  duration_ms: 0.231393
+  type: 'test'
+  ...
+# Subtest: blank voice id falls back to the default; a set one is trimmed and kept
+ok 39 - blank voice id falls back to the default; a set one is trimmed and kept
+  ---
+  duration_ms: 1.823087
+  type: 'test'
+  ...
+# Subtest: fishRequest builds the expected call and keeps the key out of the body
+ok 40 - fishRequest builds the expected call and keeps the key out of the body
+  ---
+  duration_ms: 0.402885
+  type: 'test'
+  ...
+# Subtest: blockedAddress refuses private, loopback and metadata addresses
+ok 41 - blockedAddress refuses private, loopback and metadata addresses
+  ---
+  duration_ms: 6.966211
+  type: 'test'
+  ...
+# Subtest: blockedAddress allows ordinary public addresses
+ok 42 - blockedAddress allows ordinary public addresses
+  ---
+  duration_ms: 0.296546
+  type: 'test'
+  ...
+# Subtest: blockedAddress treats malformed dotted-quad input as blocked
+ok 43 - blockedAddress treats malformed dotted-quad input as blocked
+  ---
+  duration_ms: 0.555321
+  type: 'test'
+  ...
+# Subtest: blockedAddress fails closed on empty, missing or non-IP input
+ok 44 - blockedAddress fails closed on empty, missing or non-IP input
+  ---
+  duration_ms: 0.476404
+  type: 'test'
+  ...
+# Subtest: blockedAddress still allows public IPv6 in the forms DNS returns
+ok 45 - blockedAddress still allows public IPv6 in the forms DNS returns
+  ---
+  duration_ms: 0.348814
+  type: 'test'
+  ...
+# Subtest: vetTarget returns a URL for a normal public https address
+ok 46 - vetTarget returns a URL for a normal public https address
+  ---
+  duration_ms: 0.502682
+  type: 'test'
+  ...
+# Subtest: vetTarget answers 400 for anything that is not an absolute http(s) url
+ok 47 - vetTarget answers 400 for anything that is not an absolute http(s) url
+  ---
+  duration_ms: 0.516077
+  type: 'test'
+  ...
+# Subtest: vetTarget answers 403 for local and private targets
+ok 48 - vetTarget answers 403 for local and private targets
+  ---
+  duration_ms: 0.6352
+  type: 'test'
+  ...
+# Subtest: proxyError carries the status for the caller
+ok 49 - proxyError carries the status for the caller
+  ---
+  duration_ms: 0.477596
+  type: 'test'
+  ...
+# Subtest: blockedAddress judges IPv6 by value: long forms and embedded IPv4 are blocked
+ok 50 - blockedAddress judges IPv6 by value: long forms and embedded IPv4 are blocked
+  ---
+  duration_ms: 0.998141
+  type: 'test'
+  ...
+# Subtest: blockedAddress allows public addresses wrongly blocked before
+ok 51 - blockedAddress allows public addresses wrongly blocked before
+  ---
+  duration_ms: 0.714429
+  type: 'test'
+  ...
+# Subtest: no npm script uses POSIX inline env assignment (VAR=1 command)
+ok 52 - no npm script uses POSIX inline env assignment (VAR=1 command)
+  ---
+  duration_ms: 1.320225
+  type: 'test'
+  ...
+# Subtest: bridge:writes enables writes through the cross-platform launcher
+ok 53 - bridge:writes enables writes through the cross-platform launcher
+  ---
+  duration_ms: 0.324849
+  type: 'test'
+  ...
+# Subtest: every script file an npm script points at exists
+ok 54 - every script file an npm script points at exists
+  ---
+  duration_ms: 11.074561
+  type: 'test'
+  ...
+# Subtest: sets variables for the child, including empty values and values containing "="
+ok 55 - sets variables for the child, including empty values and values containing "="
+  ---
+  duration_ms: 79.396086
+  type: 'test'
+  ...
+# Subtest: passes the child exit code through
+ok 56 - passes the child exit code through
+  ---
+  duration_ms: 70.880831
+  type: 'test'
+  ...
+# Subtest: does not leak variables into this process
+ok 57 - does not leak variables into this process
+  ---
+  duration_ms: 72.267852
+  type: 'test'
+  ...
+# Subtest: exits 2 with usage when the separator or command is missing
+ok 58 - exits 2 with usage when the separator or command is missing
+  ---
+  duration_ms: 84.847776
+  type: 'test'
+  ...
+# Subtest: exits 2 when an assignment is not NAME=value
+ok 59 - exits 2 when an assignment is not NAME=value
+  ---
+  duration_ms: 49.345449
+  type: 'test'
+  ...
+# Subtest: exits 127 when the command cannot be started
+ok 60 - exits 127 when the command cannot be started
+  ---
+  duration_ms: 48.408322
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2019.833946

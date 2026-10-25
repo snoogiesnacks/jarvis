@@ -34,3 +34,4 @@ avo/approvals.json
 avo/audit.log
 avo/budget.json
 avo/budget-ledger.jsonl
+avo/reports/digest/

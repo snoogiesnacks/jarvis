@@ -102,6 +102,7 @@ for (const scenario of scenarios) {
       outcome: result.stopped ? 'emergency-stop' : result.resolved ? 'resolved' : result.blocked ? 'blocked-on-ceo' : result.error ? 'error' : 'turn-limit',
       turns: result.transcript.length,
       ceoDecisionsPending: result.ceoDecisions.length,
+      ceoDecisions: result.ceoDecisions,
       safetyFlags: result.findings.filter(isFlag).map(({ turn, speaker, kind, phrase }) => ({ turn, speaker, kind, phrase })),
       safetyNotes: result.findings.filter((f) => !isFlag(f)).map(({ turn, speaker, kind, phrase }) => ({ turn, speaker, kind, phrase })),
       error: result.error,

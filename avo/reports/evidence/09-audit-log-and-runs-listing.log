@@ -1,0 +1,98 @@
+# Evidence 09 — raw audit.log and avo/runs listing — captured 2026-10-25T15:24:12Z
+# Context: audit logging was added at ~15:00 UTC; only runs after that write to it. The 3 lines below are the 15:14 UTC mock run from evidence 08. No live run has happened since.
+
+## command: wc -l avo/audit.log && cat avo/audit.log
+3 audit.log
+{"at":"2026-10-25T15:14:01.933Z","scenario":"fish-live-test","cast":{"Halle":"mock","Claude":"mock","Gemini":"mock"},"outcome":"resolved","turns":5,"ceoDecisionsPending":1,"safetyFlags":[],"safetyNotes":[],"error":null,"stop":null,"transcript":"/sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-fish-live-test.md"}
+{"at":"2026-10-25T15:14:02.000Z","scenario":"clean-pro-double-charge","cast":{"Halle":"mock","Claude":"mock","Gemini":"mock"},"outcome":"resolved","turns":5,"ceoDecisionsPending":1,"safetyFlags":[],"safetyNotes":[],"error":null,"stop":null,"transcript":"/sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-clean-pro-double-charge.md"}
+{"at":"2026-10-25T15:14:02.058Z","scenario":"meeting-mode-guest","cast":{"Halle":"mock","Claude":"mock","Gemini":"mock"},"outcome":"resolved","turns":5,"ceoDecisionsPending":1,"safetyFlags":[],"safetyNotes":[],"error":null,"stop":null,"transcript":"/sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-meeting-mode-guest.md"}
+
+## command: ls -l --time-style=+%FT%T avo/runs/   (file times shown in UTC; they match the UTC timestamps in the file names)
+  
+120 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-clean-pro-double-charge.jsonl
+566 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-clean-pro-double-charge.md
+611 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-fish-live-test.jsonl
+842 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-fish-live-test.md
+123 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-meeting-mode-guest.jsonl
+572 2026-10-25T14:15:52 2026-10-25T14-15-52-343Z-meeting-mode-guest.md
+608 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-clean-pro-double-charge.jsonl
+864 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-clean-pro-double-charge.md
+611 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-fish-live-test.jsonl
+842 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-fish-live-test.md
+607 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-meeting-mode-guest.jsonl
+866 2026-10-25T14:16:18 2026-10-25T14-16-18-737Z-meeting-mode-guest.md
+745 2026-10-25T14:16:26 2026-10-25T14-16-26-460Z-fish-live-test.md
+608 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-clean-pro-double-charge.jsonl
+864 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-clean-pro-double-charge.md
+611 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-fish-live-test.jsonl
+842 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-fish-live-test.md
+607 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-meeting-mode-guest.jsonl
+866 2026-10-25T14:18:32 2026-10-25T14-18-32-405Z-meeting-mode-guest.md
+745 2026-10-25T14:18:37 2026-10-25T14-18-37-291Z-fish-live-test.md
+666 2026-10-25T14:19:20 2026-10-25T14-19-18-669Z-fish-live-test.md
+689 2026-10-25T14:20:14 2026-10-25T14-20-10-247Z-clean-pro-double-charge.md
+666 2026-10-25T14:20:12 2026-10-25T14-20-10-247Z-fish-live-test.md
+694 2026-10-25T14:20:15 2026-10-25T14-20-10-247Z-meeting-mode-guest.md
+5164 2026-10-25T14:28:40 2026-10-25T14-27-42-115Z-fish-live-test.jsonl
+5992 2026-10-25T14:28:40 2026-10-25T14-27-42-115Z-fish-live-test.md
+608 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-clean-pro-double-charge.jsonl
+864 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-clean-pro-double-charge.md
+611 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-fish-live-test.jsonl
+842 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-fish-live-test.md
+607 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-meeting-mode-guest.jsonl
+866 2026-10-25T14:30:37 2026-10-25T14-30-37-127Z-meeting-mode-guest.md
+4798 2026-10-25T14:32:18 2026-10-25T14-31-39-890Z-fish-live-test.jsonl
+5574 2026-10-25T14:32:18 2026-10-25T14-31-39-890Z-fish-live-test.md
+6055 2026-10-25T14:36:07 2026-10-25T14-34-50-935Z-clean-pro-double-charge.jsonl
+6981 2026-10-25T14:36:07 2026-10-25T14-34-50-935Z-clean-pro-double-charge.md
+4557 2026-10-25T14:35:25 2026-10-25T14-34-50-935Z-fish-live-test.jsonl
+5464 2026-10-25T14:35:25 2026-10-25T14-34-50-935Z-fish-live-test.md
+4780 2026-10-25T14:36:44 2026-10-25T14-34-50-935Z-meeting-mode-guest.jsonl
+5792 2026-10-25T14:36:44 2026-10-25T14-34-50-935Z-meeting-mode-guest.md
+6111 2026-10-25T14:38:20 2026-10-25T14-37-00-079Z-clean-pro-double-charge.jsonl
+7020 2026-10-25T14:38:20 2026-10-25T14-37-00-079Z-clean-pro-double-charge.md
+4674 2026-10-25T14:37:38 2026-10-25T14-37-00-079Z-fish-live-test.jsonl
+5536 2026-10-25T14:37:38 2026-10-25T14-37-00-079Z-fish-live-test.md
+7967 2026-10-25T14:39:25 2026-10-25T14-37-00-079Z-meeting-mode-guest.jsonl
+9013 2026-10-25T14:39:25 2026-10-25T14-37-00-079Z-meeting-mode-guest.md
+608 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-clean-pro-double-charge.jsonl
+864 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-clean-pro-double-charge.md
+611 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-fish-live-test.jsonl
+842 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-fish-live-test.md
+607 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-meeting-mode-guest.jsonl
+866 2026-10-25T14:37:36 2026-10-25T14-37-36-469Z-meeting-mode-guest.md
+7399 2026-10-25T14:43:23 2026-10-25T14-41-32-629Z-clean-pro-double-charge.jsonl
+8190 2026-10-25T14:43:23 2026-10-25T14-41-32-629Z-clean-pro-double-charge.md
+5658 2026-10-25T14:42:26 2026-10-25T14-41-32-629Z-fish-live-test.jsonl
+5979 2026-10-25T14:42:26 2026-10-25T14-41-32-629Z-fish-live-test.md
+7427 2026-10-25T14:44:43 2026-10-25T14-41-32-629Z-meeting-mode-guest.jsonl
+8134 2026-10-25T14:44:43 2026-10-25T14-41-32-629Z-meeting-mode-guest.md
+608 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-clean-pro-double-charge.jsonl
+917 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-clean-pro-double-charge.md
+611 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-fish-live-test.jsonl
+895 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-fish-live-test.md
+607 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-meeting-mode-guest.jsonl
+919 2026-10-25T15:05:58 2026-10-25T15-05-58-315Z-meeting-mode-guest.md
+608 2026-10-25T15:14:01 2026-10-25T15-14-01-879Z-clean-pro-double-charge.jsonl
+917 2026-10-25T15:14:01 2026-10-25T15-14-01-879Z-clean-pro-double-charge.md
+611 2026-10-25T15:14:01 2026-10-25T15-14-01-879Z-fish-live-test.jsonl
+895 2026-10-25T15:14:01 2026-10-25T15-14-01-879Z-fish-live-test.md
+607 2026-10-25T15:14:02 2026-10-25T15-14-01-879Z-meeting-mode-guest.jsonl
+919 2026-10-25T15:14:02 2026-10-25T15-14-01-879Z-meeting-mode-guest.md
+
+## command: head -12 of the transcript written by the 15:14 UTC mock run (fish-live-test)
+# A.V.O. simulation — Go-live check for the Fish Audio voice
+
+Run: 2026-10-25T15:14:01.924Z · Outcome: RESOLVED
+
+**This is a simulation.** Stand-ins are Claude playing a role; they are not Halle or Gemini and nothing they say is that agent's view or approval. No actions were taken outside this conversation.
+
+## Cast
+- Halle (mock) — engine: mock
+- Claude (mock) — engine: mock
+- Gemini (mock) — engine: mock
+
+## Conversation
+
+## command: first line of its raw turns file (.jsonl)
+{"turn":1,"speaker":"Claude","label":"Claude (mock)","real":false,"text":"Claude (mock) turn 1.\nNEXT: Gemini"}

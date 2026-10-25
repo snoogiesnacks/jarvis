@@ -1,0 +1,10 @@
+# command: AVO_STOP=1 node avo/run.mjs --mock   started: 2026-10-25T15:14:01Z
+[avo] EMERGENCY STOP — not starting (AVO_STOP=1 is set). Delete avo\STOP to resume.
+# exit code: 4
+
+# command: node avo/run.mjs --mock   started: 2026-10-25T15:14:01Z
+[avo] cast: Halle (mock) · Claude (mock) · Gemini (mock)
+[avo] resolved · 5 turns · 1 CEO decisions · /sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-fish-live-test.md
+[avo] resolved · 5 turns · 1 CEO decisions · /sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-clean-pro-double-charge.md
+[avo] resolved · 5 turns · 1 CEO decisions · /sessions/rcw-014cjfuv9mpgi2btawdmrkuw/mnt/jarvis/avo/runs/2026-10-25T15-14-01-879Z-meeting-mode-guest.md
+# exit code: 0

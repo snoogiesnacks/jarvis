@@ -25,3 +25,13 @@ dist-ssr
 
 # Copied out of node_modules by scripts/start.mjs — 34MB of build output.
 public/mediapipe/
+
+# A.V.O. simulation transcripts
+avo/runs/
+avo/STOP
+avo/STOP.txt
+avo/approvals.json
+avo/audit.log
+avo/budget.json
+avo/budget-ledger.jsonl
+avo/reports/digest/

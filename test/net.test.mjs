@@ -40,13 +40,18 @@ test('blockedAddress treats malformed dotted-quad input as blocked', () => {
   }
 })
 
-// Known gap, recorded rather than fixed (no production-code change in this pass):
-// empty/missing input falls through to the IPv6 tail and returns false (allowed).
-// Not reachable today -- callers pass DNS answers and isIP()-validated literals --
-// but a security gate should fail closed. Flip `todo` off once net.mjs does.
-test('blockedAddress fails closed on empty or missing input', { todo: 'fail-open on empty input; unreachable from current callers' }, () => {
-  for (const ip of ['', undefined, null]) {
-    assert.equal(blockedAddress(ip), true, `${String(ip)} should be blocked`)
+// Regression for a fixed defect (2026-10-25): empty, missing or non-IP input
+// used to fall through to the IPv6 tail and come back false (allowed). Not
+// reachable from current callers, but a security gate must fail closed.
+test('blockedAddress fails closed on empty, missing or non-IP input', () => {
+  for (const ip of ['', undefined, null, '   ', 'localhost', 'example.com', 'not-an-ip', ':::', '[::1]', '1::2::3', {}, 42]) {
+    assert.equal(blockedAddress(ip), true, `${JSON.stringify(ip) ?? String(ip)} should be blocked`)
+  }
+})
+
+test('blockedAddress still allows public IPv6 in the forms DNS returns', () => {
+  for (const ip of ['2606:4700:4700::1111', '2001:4860:4860::8888', '2a00:1450:4001:82a::200e', '2606:4700:4700::1111%eth0']) {
+    assert.equal(blockedAddress(ip), false, `${ip} should be allowed`)
   }
 })
 
@@ -81,4 +86,23 @@ test('proxyError carries the status for the caller', () => {
   const err = proxyError(418, 'teapot')
   assert.equal(err.status, 418)
   assert.equal(err.message, 'teapot')
+})
+
+// Regressions for defects found by independent review (2026-10-25): string
+// comparison let long-form and IPv4-embedding IPv6 spellings of private
+// addresses through, and the 192.0.0/24 rule blocked all of 192.0/16.
+test('blockedAddress judges IPv6 by value: long forms and embedded IPv4 are blocked', () => {
+  for (const ip of [
+    '0:0:0:0:0:0:0:1', '::0:1', '0:0:0:0:0:ffff:7f00:1', // long-form loopback
+    '::7f00:1', // IPv4-compatible loopback
+    '64:ff9b::c0a8:101', '64:ff9b::a9fe:a9fe', // NAT64 -> 192.168.1.1, metadata
+    '2002:7f00:1::', '2002:a00:1::1', // 6to4 -> 127.0.0.1, 10.0.0.1
+  ]) assert.equal(blockedAddress(ip), true, `${ip} should be blocked`)
+})
+
+test('blockedAddress allows public addresses wrongly blocked before', () => {
+  for (const ip of ['192.0.78.9', '64:ff9b::808:808', '2002:808:808::1', '0:0:0:0:0:ffff:808:808', '2620:fe::fe']) {
+    assert.equal(blockedAddress(ip), false, `${ip} should be allowed`)
+  }
+  assert.equal(blockedAddress('192.0.0.8'), true, '192.0.0/24 itself stays blocked')
 })

@@ -1,3 +1,4 @@
+import { scan, isFlag } from './safety.mjs'
 // The A.V.O. table: runs one scenario as a conversation between the seats.
 import { NAMES } from './staff.mjs'
 
@@ -26,13 +27,16 @@ function render(scenario, transcript, speaker) {
   return lines.join('\n')
 }
 
-export async function runScenario({ scenario, seats, maxTurns = 8, onTurn = () => {}, env }) {
+export async function runScenario({ scenario, seats, maxTurns = 8, onTurn = () => {}, env, shouldStop = () => null }) {
   const redact = redactor(env)
   const transcript = []
   let speaker = scenario.opener
   let resolved = false
   let error = null
+  let stopped = null
   for (let turn = 1; turn <= maxTurns; turn++) {
+    stopped = shouldStop()
+    if (stopped) break
     const seat = seats[speaker]
     let text
     try {
@@ -52,10 +56,14 @@ export async function runScenario({ scenario, seats, maxTurns = 8, onTurn = () =
     const proper = asked && NAMES.find((n) => n.toLowerCase() === asked.toLowerCase())
     speaker = proper && proper !== speaker ? proper : NAMES[(NAMES.indexOf(speaker) + 1) % NAMES.length]
   }
+  const findings = scan(transcript)
+  const overreach = findings
+    .filter(isFlag)
+    .map((f) => `turn ${f.turn} (${f.speaker}, ${f.kind}): "${f.sentence}"`)
   const ceoDecisions = [
     ...new Set(transcript.flatMap((t) => [...t.text.matchAll(CEO_RE)].map((m) => `${m[1].trim()} (${t.speaker})`))),
   ]
-  return { scenario: scenario.id, title: scenario.title, transcript, resolved, error, ceoDecisions }
+  return { scenario: scenario.id, title: scenario.title, transcript, resolved, error, stopped, ceoDecisions, overreach, findings }
 }
 
 export function toMarkdown(result, seats, when = new Date()) {
@@ -63,7 +71,7 @@ export function toMarkdown(result, seats, when = new Date()) {
   return [
     `# A.V.O. simulation — ${result.title}`,
     '',
-    `Run: ${when.toISOString()} · Outcome: ${result.resolved ? 'RESOLVED' : result.error ? 'STOPPED ON ERROR' : 'TURN LIMIT REACHED'}`,
+    `Run: ${when.toISOString()} · Outcome: ${result.stopped ? 'EMERGENCY STOP' : result.resolved ? 'RESOLVED' : result.error ? 'STOPPED ON ERROR' : 'TURN LIMIT REACHED'}`,
     '',
     '**This is a simulation.** Stand-ins are Claude playing a role; they are not Halle or Gemini and nothing they say is that agent\'s view or approval. No actions were taken outside this conversation.',
     '',
@@ -73,8 +81,12 @@ export function toMarkdown(result, seats, when = new Date()) {
     '## Conversation',
     ...result.transcript.flatMap((t) => [`**${t.turn}. ${t.label}**`, '', t.text, '']),
     ...(result.error ? ['## Error', result.error, ''] : []),
-    '## Decisions for the CEO',
-    ...(result.ceoDecisions.length ? result.ceoDecisions.map((d) => `- ${d}`) : ['- none raised']),
+    ...(result.overreach.length
+      ? ['## ⚠ SAFETY FLAG: acting without CEO approval', ...result.overreach.map((o) => `- ${o}`), '']
+      : []),
+    ...(result.stopped ? ['## Emergency stop', result.stopped, ''] : []),
+    '## Decisions for the CEO (all PENDING — nothing here is approved)',
+    ...(result.ceoDecisions.length ? result.ceoDecisions.map((d) => `- [PENDING] ${d}`) : ['- none raised']),
     '',
   ].join('\n')
 }

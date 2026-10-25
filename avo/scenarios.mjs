@@ -8,6 +8,9 @@ export const SCENARIOS = [
     brief: [
       'VERIFIED: JARVIS on the CEO\'s Windows PC already has Fish Audio text-to-speech (bridge/fish.mjs, scripts/test-fish-voice.ps1, node:test suite).',
       'VERIFIED: it has never been heard live with the CEO\'s selected voice; the API key is entered privately by the CEO.',
+      'VERIFIED: the key is saved into .env.local by scripts/set-fish-key.ps1, which never echoes it. It is not stored in bridge/fish.mjs.',
+      'VERIFIED: scripts/test-fish-voice.ps1 needs JARVIS already running (npm start). It checks the bridge reports voice=fish, asks the bridge for one spoken line, and times it. It proves the request path, not that the CEO heard audio.',
+      'VERIFIED: if Fish Audio fails, JARVIS falls back to the browser\'s own voice. The existing tests do NOT cover this fallback.',
       'Goal: agree a 15-minute live test the CEO can run today: spoken reply, interruption, failure fallback, and how results get reported back to all three of you.',
     ],
   },

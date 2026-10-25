@@ -1,3 +1,8 @@
+import { requireApproval } from './control.mjs'
+import { mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 // A.V.O. staff: who sits at the table, and which engine speaks for each.
 //
 // Engines
@@ -40,7 +45,9 @@ export function systemPrompt(name, { standIn = false } = {}) {
     'Rules:',
     '- Talk only. You cannot run tools, send messages, spend money or change systems. Never say you did something outside this conversation; say what you would do or propose.',
     '- Do not invent facts about real systems, accounts or results. Mark assumptions as assumptions.',
-    '- Anything needing the CEO (money, accounts, security, publishing, contacting customers) goes on its own line starting "CEO DECISION:".',
+    '- Anything needing the CEO (money, accounts, security, publishing, contacting customers, showing content to guests) goes on its own line starting "CEO DECISION:". Raise each decision once; do not repeat one a teammate already raised.',
+    '- No action ever happens by default when the CEO is silent. Never propose "if no response in N minutes, we proceed". Without his answer, the safe default is to wait.',
+    '- Speak about future work as proposals ("I propose", "once approved I would"), never as work you are starting now.',
     '- Never write credentials, keys or personal data.',
     '- Keep each turn under 120 words. Build on what others said; disagree when you should.',
     `- End every turn with exactly one line: "NEXT: <${NAMES.join('|')}>" naming who should speak next, or "[RESOLVED]" once the team has an agreed plan with owners.`,
@@ -51,8 +58,17 @@ export function systemPrompt(name, { standIn = false } = {}) {
 
 // ---------- engines ----------
 
+const STRIP = /^(ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|OPENAI_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|FISH_API_KEY|ELEVENLABS_API_KEY)$/
+export function seatEnv(env = process.env) {
+  return Object.fromEntries(Object.entries(env).filter(([k]) => !STRIP.test(k)))
+}
+
 async function claudeEngine({ system, prompt, model }) {
   const { query } = await import('@anthropic-ai/claude-agent-sdk')
+  // Run from an empty folder so memory saved for the JARVIS project folder
+  // doesn't leak into the simulation as unverified "facts".
+  const cwd = join(tmpdir(), 'jarvis-avo-seat')
+  mkdirSync(cwd, { recursive: true })
   const q = query({
     prompt,
     options: {
@@ -62,6 +78,10 @@ async function claudeEngine({ system, prompt, model }) {
       settingSources: [], // ignore filesystem settings and hooks
       maxTurns: 1,
       persistSession: false,
+      cwd,
+      // Claude seats run on the Claude Code subscription login only. Strip any
+      // API keys so a stray ANTHROPIC_API_KEY can never bill the API.
+      env: seatEnv(),
       ...(model ? { model } : {}),
     },
   })
@@ -75,16 +95,19 @@ async function claudeEngine({ system, prompt, model }) {
   return text.trim()
 }
 
-function requirePaid(env, keyVar, modelVar, who) {
+function requirePaid(env, keyVar, modelVar, who, approvals) {
   if (env.AVO_ALLOW_PAID !== '1')
     throw new Error(`${who}: paid API engine needs AVO_ALLOW_PAID=1 (CEO approval and spend cap first)`)
+  // The environment switch alone is not enough: the CEO's own approvals file
+  // must also hold a "paid-api" entry.
+  requireApproval(`paid-api-${who === 'Halle' ? 'openai' : 'gemini'}`, approvals)
   if (!env[keyVar]) throw new Error(`${who}: ${keyVar} is not set`)
   if (!env[modelVar]) throw new Error(`${who}: set ${modelVar} to the exact model name`)
   return { key: env[keyVar], model: env[modelVar] }
 }
 
-async function openaiEngine({ system, prompt, env }) {
-  const { key, model } = requirePaid(env, 'OPENAI_API_KEY', 'AVO_HALLE_MODEL', 'Halle')
+async function openaiEngine({ system, prompt, env, approvals }) {
+  const { key, model } = requirePaid(env, 'OPENAI_API_KEY', 'AVO_HALLE_MODEL', 'Halle', approvals)
   const r = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
@@ -101,8 +124,8 @@ async function openaiEngine({ system, prompt, env }) {
     .trim()
 }
 
-async function geminiEngine({ system, prompt, env }) {
-  const { key, model } = requirePaid(env, 'GEMINI_API_KEY', 'AVO_GEMINI_MODEL', 'Gemini')
+async function geminiEngine({ system, prompt, env, approvals }) {
+  const { key, model } = requirePaid(env, 'GEMINI_API_KEY', 'AVO_GEMINI_MODEL', 'Gemini', approvals)
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -122,7 +145,7 @@ async function geminiEngine({ system, prompt, env }) {
 }
 
 /** Build the seat for one staff member. */
-export function makeSeat(name, engine, env = process.env) {
+export function makeSeat(name, engine, env = process.env, approvals) {
   const standIn = engine === 'standin'
   const label =
     engine === 'standin'
@@ -135,8 +158,8 @@ export function makeSeat(name, engine, env = process.env) {
   const reply = {
     claude: (prompt) => claudeEngine({ system, prompt, model }),
     standin: (prompt) => claudeEngine({ system, prompt, model }),
-    openai: (prompt) => openaiEngine({ system, prompt, env }),
-    gemini: (prompt) => geminiEngine({ system, prompt, env }),
+    openai: (prompt) => openaiEngine({ system, prompt, env, approvals }),
+    gemini: (prompt) => geminiEngine({ system, prompt, env, approvals }),
   }[engine]
   if (!reply && engine !== 'mock') throw new Error(`unknown engine "${engine}" for ${name}`)
   return { name, engine, label, real: !standIn && engine !== 'mock', reply }

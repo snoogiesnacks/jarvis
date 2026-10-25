@@ -28,3 +28,7 @@ public/mediapipe/
 
 # A.V.O. simulation transcripts
 avo/runs/
+avo/STOP
+avo/STOP.txt
+avo/approvals.json
+avo/audit.log

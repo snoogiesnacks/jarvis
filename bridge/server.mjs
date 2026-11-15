@@ -21,6 +21,7 @@ import { displayServer } from './panels.mjs'
 import { uiServer } from './ui.mjs'
 import { chromeAvailable, chromeServer } from './chrome.mjs'
 import { visionServer } from './vision.mjs'
+import { connectOllama } from './ollama.mjs'
 import { homedir, tmpdir } from 'node:os'
 import { readFileSync, realpathSync } from 'node:fs'
 import { readFile, realpath, stat } from 'node:fs/promises'
@@ -1066,9 +1067,12 @@ const wss = new WebSocketServer({
     done(true)
   },
 })
-server.listen(PORT)
+// Loopback only unless a host is named: with no host Node listens on every
+// interface, which puts the bridge on the local network.
+const HOST = process.env.JARVIS_BRIDGE_HOST || '127.0.0.1'
+server.listen(PORT, HOST)
 
-console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
+console.log(`[jarvis] bridge listening on ws://${HOST}:${PORT}`)
 console.log(
   `[jarvis] speech ${
     ttsProvider() === 'fish'
@@ -1114,6 +1118,10 @@ const RESULT_FAILURES = {
 }
 
 wss.on('connection', (socket) => {
+  if (process.env.JARVIS_PROVIDER === 'ollama') {
+    connectOllama(socket)
+    return
+  }
   console.log('[jarvis] client connected')
 
   // Answer the HUD straight away rather than making it wait for the agent's

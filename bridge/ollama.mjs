@@ -1,16 +1,31 @@
+import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import path from 'node:path'
 
 const endpoint = 'http://127.0.0.1:11434/api/chat'
 const models = new Set(['gemma3:1b', 'llama3.2:1b'])
 
 /**
- * When JARVIS_REVIEW_DIR names a folder, every local answer is also written
- * there as a needs_review record, so a person can check it later alongside the
- * queue's results. A failed write never interrupts the chat.
+ * Where local answers are filed for human review. JARVIS_REVIEW_DIR names the
+ * folder; "off" disables it. With nothing set, the Legend Crew AI workforce
+ * folder is used when it exists on this machine, so local mode is reviewed by
+ * default rather than by remembering to set a variable.
+ */
+export function reviewDir(env = process.env, home = homedir()) {
+  const named = env.JARVIS_REVIEW_DIR?.trim()
+  if (named) return named.toLowerCase() === 'off' ? null : named
+  const workforce = path.join(home, 'Legend Crew AI', 'divisions', 'jarvis', 'review')
+  return existsSync(workforce) ? workforce : null
+}
+
+/**
+ * Every local answer is also written as a needs_review record, so a person can
+ * check it later alongside the queue's results. A failed write never
+ * interrupts the chat.
  */
 async function recordForReview(model, question, answer) {
-  const dir = process.env.JARVIS_REVIEW_DIR
+  const dir = reviewDir()
   if (!dir) return
   const now = new Date()
   const id = `jarvis-chat-${now.toISOString().replace(/[-:.]/g, '').slice(0, 15)}-${Math.random().toString(36).slice(2, 6)}`

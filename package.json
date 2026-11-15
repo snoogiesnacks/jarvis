@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "bridge": "node bridge/server.mjs",
     "bridge:writes": "node scripts/with-env.mjs JARVIS_ALLOW_WRITES=1 -- node bridge/server.mjs",
+    "bridge:local": "node scripts/with-env.mjs JARVIS_PROVIDER=ollama -- node bridge/server.mjs",
     "setup": "node scripts/setup.mjs",
     "test": "node --test",
     "avo": "node avo/run.mjs",

@@ -1,0 +1,18 @@
+# command: node --test test/net.test.mjs   started: 2026-10-25T15:14:01Z
+# exit code: 0
+ok 1 - blockedAddress refuses private, loopback and metadata addresses
+ok 2 - blockedAddress allows ordinary public addresses
+ok 3 - blockedAddress treats malformed dotted-quad input as blocked
+ok 4 - blockedAddress fails closed on empty, missing or non-IP input
+ok 5 - blockedAddress still allows public IPv6 in the forms DNS returns
+ok 6 - vetTarget returns a URL for a normal public https address
+ok 7 - vetTarget answers 400 for anything that is not an absolute http(s) url
+ok 8 - vetTarget answers 403 for local and private targets
+ok 9 - proxyError carries the status for the caller
+ok 10 - blockedAddress judges IPv6 by value: long forms and embedded IPv4 are blocked
+ok 11 - blockedAddress allows public addresses wrongly blocked before
+# tests 11
+# pass 11
+# fail 0
+# skipped 0
+# todo 0

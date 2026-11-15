@@ -1,0 +1,31 @@
+# Independent-review network fixes — 2026-10-25T15:12:53Z
+## BEFORE (net.mjs as of first fix)
+SHOULD BLOCK   "0:0:0:0:0:0:0:1"
+SHOULD BLOCK   "::0:1"
+SHOULD BLOCK   "0:0:0:0:0:ffff:7f00:1"
+SHOULD BLOCK   "64:ff9b::c0a8:101"
+SHOULD BLOCK   "2002:7f00:1::"
+SHOULD BLOCK   "::7f00:1"
+SHOULD BLOCK   "2002:a00:1::1"
+SHOULD BLOCK   "64:ff9b::a9fe:a9fe"
+SHOULD ALLOW   192.0.78.9
+SHOULD ALLOW   192.0.2.1
+SHOULD ALLOW   fc::1
+net-before2.mjs: 11 wrong of 37
+## AFTER
+net.mjs: 0 wrong of 37
+## node --test test/net.test.mjs
+ok 1 - blockedAddress refuses private, loopback and metadata addresses
+ok 2 - blockedAddress allows ordinary public addresses
+ok 3 - blockedAddress treats malformed dotted-quad input as blocked
+ok 4 - blockedAddress fails closed on empty, missing or non-IP input
+ok 5 - blockedAddress still allows public IPv6 in the forms DNS returns
+ok 6 - vetTarget returns a URL for a normal public https address
+ok 7 - vetTarget answers 400 for anything that is not an absolute http(s) url
+ok 8 - vetTarget answers 403 for local and private targets
+ok 9 - proxyError carries the status for the caller
+ok 10 - blockedAddress judges IPv6 by value: long forms and embedded IPv4 are blocked
+ok 11 - blockedAddress allows public addresses wrongly blocked before
+# tests 11
+# pass 11
+# fail 0

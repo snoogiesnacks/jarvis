@@ -1,0 +1,36 @@
+run | engine | outcome | turns | CEO decisions | error
+2026-10-25T14-15-52-343Z-clean-pro-double-charge | mock | RESOLVED | 1 | 0 | 
+2026-10-25T14-15-52-343Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-15-52-343Z-meeting-mode-guest | mock | RESOLVED | 1 | 0 | 
+2026-10-25T14-16-18-737Z-clean-pro-double-charge | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-16-18-737Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-16-18-737Z-meeting-mode-guest | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-16-26-460Z-fish-live-test | LIVE | STOPPED ON ERROR | 0 | 0 | Claude: Native CLI binary for linux-x64 not found. Reinstall @anthropic-ai/claude-agent-sd
+2026-10-25T14-18-32-405Z-clean-pro-double-charge | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-18-32-405Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-18-32-405Z-meeting-mode-guest | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-18-37-291Z-fish-live-test | LIVE | STOPPED ON ERROR | 0 | 0 | Claude: Native CLI binary for win32-x64 not found. Reinstall @anthropic-ai/claude-agent-sd
+2026-10-25T14-19-18-669Z-fish-live-test | LIVE | STOPPED ON ERROR | 0 | 0 | Claude: Claude Code returned an error result: Not logged in · Please run /login
+2026-10-25T14-20-10-247Z-clean-pro-double-charge | LIVE | STOPPED ON ERROR | 0 | 0 | Halle: Claude Code returned an error result: Not logged in · Please run /login
+2026-10-25T14-20-10-247Z-fish-live-test | LIVE | STOPPED ON ERROR | 0 | 0 | Claude: Claude Code returned an error result: Not logged in · Please run /login
+2026-10-25T14-20-10-247Z-meeting-mode-guest | LIVE | STOPPED ON ERROR | 0 | 0 | Gemini: Claude Code returned an error result: Not logged in · Please run /login
+2026-10-25T14-27-42-115Z-fish-live-test | LIVE | RESOLVED | 5 | 3 | 
+2026-10-25T14-30-37-127Z-clean-pro-double-charge | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-30-37-127Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-30-37-127Z-meeting-mode-guest | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-31-39-890Z-fish-live-test | LIVE | RESOLVED | 5 | 4 | 
+2026-10-25T14-34-50-935Z-clean-pro-double-charge | LIVE | RESOLVED | 5 | 4 | 
+2026-10-25T14-34-50-935Z-fish-live-test | LIVE | RESOLVED | 4 | 4 | 
+2026-10-25T14-34-50-935Z-meeting-mode-guest | LIVE | RESOLVED | 5 | 5 | 
+2026-10-25T14-37-00-079Z-clean-pro-double-charge | LIVE | RESOLVED | 5 | 5 | 
+2026-10-25T14-37-00-079Z-fish-live-test | LIVE | RESOLVED | 5 | 5 | 
+2026-10-25T14-37-00-079Z-meeting-mode-guest | LIVE | TURN LIMIT REACHED | 8 | 8 | 
+2026-10-25T14-37-36-469Z-clean-pro-double-charge | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-37-36-469Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-37-36-469Z-meeting-mode-guest | mock | RESOLVED | 5 | 1 | 
+2026-10-25T14-41-32-629Z-clean-pro-double-charge | LIVE | RESOLVED | 7 | 4 | 
+2026-10-25T14-41-32-629Z-fish-live-test | LIVE | RESOLVED | 6 | 1 | 
+2026-10-25T14-41-32-629Z-meeting-mode-guest | LIVE | TURN LIMIT REACHED | 8 | 3 | 
+2026-10-25T15-05-58-315Z-clean-pro-double-charge | mock | RESOLVED | 5 | 1 | 
+2026-10-25T15-05-58-315Z-fish-live-test | mock | RESOLVED | 5 | 1 | 
+2026-10-25T15-05-58-315Z-meeting-mode-guest | mock | RESOLVED | 5 | 1 | 

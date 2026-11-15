@@ -52,6 +52,26 @@ const BLOCKED_HOSTNAME = /(^|\.)(localhost|local|internal|intranet|home\.arpa)$/
  * lives there), 0.0.0.0/8 and the v4-mapped v6 forms are the classic ways of
  * writing "localhost" that a naive string check waves straight through.
  */
+/** Eight 16-bit numbers for a valid IPv6 string (dotted tail allowed), else null. */
+function ipv6Hextets(addr) {
+  let a = addr
+  const dotted = /(\d{1,3}(?:\.\d{1,3}){3})$/.exec(a)
+  if (dotted) {
+    const p = dotted[1].split('.').map(Number)
+    if (p.some((n) => n > 255)) return null
+    a = a.slice(0, dotted.index) + ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16)
+  }
+  const halves = a.split('::')
+  if (halves.length > 2) return null
+  const head = halves[0] ? halves[0].split(':') : []
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : []
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null
+  const parts = [...head, ...Array(fill).fill('0'), ...tail]
+  if (parts.length !== 8 || parts.some((x) => !/^[0-9a-f]{1,4}$/.test(x))) return null
+  return parts.map((x) => parseInt(x, 16))
+}
+
 export function blockedAddress(ip) {
   let addr = String(ip ?? '').toLowerCase().split('%')[0]
   // ::ffff:127.0.0.1 is loopback wearing a hat. Unwrap before judging.
@@ -75,12 +95,34 @@ export function blockedAddress(ip) {
     if (a === 169 && b === 254) return true // link-local AND cloud metadata
     if (a === 172 && b >= 16 && b <= 31) return true // 172.16/12
     if (a === 192 && b === 168) return true // 192.168/16
-    if (a === 192 && b === 0) return true // 192.0.0/24 protocol assignments
+    if (a === 192 && b === 0 && parts[2] === 0) return true // 192.0.0/24 protocol assignments (only /24: 192.0.x is otherwise public)
     if (a === 100 && b >= 64 && b <= 127) return true // CGNAT / tailnets
     if (a === 198 && (b === 18 || b === 19)) return true // benchmarking range
     if (a >= 224) return true // multicast, reserved, broadcast
     return false
   }
+
+  // Fail closed: from here on only a well-formed IPv6 address can be allowed.
+  // Empty, missing, or garbage input (no dots, not IPv6) used to fall through
+  // to the final `return false` below and be treated as a public address.
+  if (isIP(addr) !== 6) return true
+
+  // Judge the 128-bit value, not the spelling. String checks alone let long
+  // forms through (0:0:0:0:0:0:0:1 is ::1), and three ranges embed an IPv4
+  // address that must be judged as IPv4: IPv4-compatible ::/96, NAT64
+  // 64:ff9b::/96, and 6to4 2002::/16.
+  const h = ipv6Hextets(addr)
+  if (!h) return true
+  const v4 = (hi, lo) => [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join('.')
+  if (h.slice(0, 6).every((x) => x === 0)) {
+    if (h[6] === 0 && h[7] <= 1) return true // :: and ::1
+    return blockedAddress(v4(h[6], h[7])) // ::a.b.c.d (deprecated IPv4-compatible)
+  }
+  if (h.slice(0, 5).every((x) => x === 0) && h[5] === 0xffff) return blockedAddress(v4(h[6], h[7]))
+  if (h[0] === 0x64 && h[1] === 0xff9b && h.slice(2, 6).every((x) => x === 0))
+    return blockedAddress(v4(h[6], h[7]))
+  if (h[0] === 0x2002) return blockedAddress(v4(h[1], h[2]))
+  addr = h.map((x) => x.toString(16)).join(':') // full form for the prefix checks below
 
   // The hex forms the parser actually produces, including the mapped range that
   // the dotted-quad unwrap above can never see.
@@ -98,9 +140,9 @@ export function blockedAddress(ip) {
     }
     return true
   }
-  if (/^f[cd]/.test(addr)) return true // fc00::/7 unique local
-  if (/^fe[89ab]/.test(addr)) return true // fe80::/10 link-local
-  if (/^ff/.test(addr)) return true // multicast
+  if (/^f[cd][0-9a-f]{2}:/.test(addr)) return true // fc00::/7 unique local
+  if (/^fe[89ab][0-9a-f]:/.test(addr)) return true // fe80::/10 link-local
+  if (/^ff[0-9a-f]{2}:/.test(addr)) return true // multicast
   return false
 }
 

@@ -2,6 +2,7 @@ import { BRIDGE_HTTP_URL } from '../config'
 import { getMic } from './audio'
 import { speakingNow, speakingSince } from './tts'
 import { startVad, type Vad } from './vad'
+import { acceptsUnheld, onPtt, pttHeld, pttOnly, routePtt, PTT_TAIL_MS } from './ptt'
 import { caps } from './capabilities'
 
 /**
@@ -420,7 +421,9 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
    * Order is preserved because the drain is single-flight, which matters —
    * "London" arriving before "what's the weather in" is worse than either.
    */
-  const pendingAudio: Blob[] = []
+  const pendingAudio: { blob: Blob; ptt: boolean }[] = []
+  /** Whether the segment being captured now began with push-to-talk held. */
+  let segPtt = false
   let draining = false
 
   /**
@@ -445,7 +448,7 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
    * transcript arriving — and the transcript belongs to the mode the user is in
    * now, not the one they interrupted.
    */
-  const transcribe = async (blob: Blob) => {
+  const transcribe = async (blob: Blob, ptt = false) => {
     const mode = h.mode()
     if (mode === 'deaf') return
     const t0 = performance.now()
@@ -481,6 +484,20 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
       diag.heard = said
       diag.heardAt = Date.now()
 
+      // Held key = intent: no wake word, no assembler wait.
+      if (ptt) {
+        const r = routePtt(said, mode)
+        if (r.action === 'drop') return drop(r.why ?? 'push-to-talk')
+        assemble.cancel()
+        diag.dropped = ''
+        diag.accepted++
+        if (r.action === 'wake') {
+          diag.wakes++
+          h.onWake(r.text)
+        } else h.onUtterance(r.text)
+        return
+      }
+
       if (mode === 'wake') {
         if (WAKE.test(said) && Date.now() - lastWake > WAKE_DEBOUNCE) {
           lastWake = Date.now()
@@ -510,7 +527,8 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
     draining = true
     try {
       while (pendingAudio.length) {
-        await transcribe(pendingAudio.shift()!)
+        const next = pendingAudio.shift()!
+        await transcribe(next.blob, next.ptt)
       }
     } finally {
       draining = false
@@ -522,7 +540,15 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
       const mode = h.mode()
       diag.mode = mode
       diag.sessions++
+      segPtt = pttHeld()
       if (mode === 'deaf') return
+      if (!segPtt && !acceptsUnheld(pttOnly())) return drop('push-to-talk only: key not held')
+      if (segPtt) {
+        // Held key while he talks is a deliberate interruption: no self-guard clock.
+        if (mode === 'guard') h.onSpeechStart()
+        h.onPartial('…')
+        return
+      }
       // Standing down mid-thought throws the thought away with it. Otherwise
       // held text would surface as the opening of the *next* conversation.
       if (mode === 'wake') assemble.cancel()
@@ -539,7 +565,10 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
       }
     },
     onEnd: (blob) => {
-      pendingAudio.push(blob)
+      const ptt = segPtt
+      segPtt = false
+      if (!ptt && !acceptsUnheld(pttOnly())) return
+      pendingAudio.push({ blob, ptt })
       void drain()
     },
     onLevel: (v) => {
@@ -566,6 +595,8 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
   // Raise the trigger bar exactly while he speaks. The mode is polled rather
   // than pushed because nothing in the app pushes phase changes here, and a
   // 200ms lag on the echo gate is imperceptible.
+  const offPtt = onPtt((on) => vad?.setForce(on))
+
   const guardPoll = setInterval(() => {
     const mode = h.mode()
     vad?.setGuard(mode === 'guard')
@@ -579,6 +610,7 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
   return {
     stop: () => {
       clearInterval(guardPoll)
+      offPtt()
       assemble.cancel()
       vad?.stop()
       diag.running = false
@@ -619,6 +651,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
   let lastWake = 0
   let lastAlive = Date.now()
   let silenceTimer: ReturnType<typeof setTimeout> | null = null
+  /** Push-to-talk: collecting words while the key is held, plus a short tail after release. */
+  let pttActive = false
+  let pttTail: ReturnType<typeof setTimeout> | null = null
 
   /** Same assembly rules as the premium path — a pause is not a full stop. */
   const assemble = makeAssembler({
@@ -685,12 +720,66 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     silenceTimer = setTimeout(emit, 900)
   }
 
+  /** Key released and the tail has passed: act on everything said while it was held. */
+  const finishPtt = () => {
+    pttTail = null
+    const text = `${settled} ${interim}`.replace(/\s+/g, ' ').trim()
+    pttActive = false
+    reset()
+    const mode = h.mode()
+    if (text && isEcho(text, speakingNow())) return drop('echo of his own voice')
+    const r = routePtt(text, mode)
+    if (r.action === 'drop') {
+      h.onPartial('')
+      return drop(r.why ?? 'push-to-talk')
+    }
+    diag.heard = r.text
+    diag.heardAt = Date.now()
+    diag.dropped = ''
+    diag.accepted++
+    if (r.action === 'wake') {
+      diag.wakes++
+      h.onWake(r.text)
+    } else h.onUtterance(r.text)
+  }
+
+  const offPtt = onPtt((on) => {
+    if (on) {
+      if (pttTail) clearTimeout(pttTail)
+      pttTail = null
+      reset()
+      assemble.cancel()
+      pttActive = true
+      // Held key while he talks is a deliberate interruption.
+      if (h.mode() === 'guard') h.onSpeechStart()
+      h.onPartial('…')
+    } else if (pttActive && !pttTail) {
+      pttTail = setTimeout(finishPtt, PTT_TAIL_MS)
+    }
+  })
+
   const onResult = (e: any) => {
     touch()
     const mode = h.mode()
     diag.mode = mode
     if (mode === 'deaf') {
       interim = ''
+      return
+    }
+    if (pttActive) {
+      interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript as string
+        if (e.results[i].isFinal) settled += chunk
+        else interim += chunk
+      }
+      h.onPartial(`${settled} ${interim}`.replace(/\s+/g, ' ').trim() || '…')
+      return
+    }
+    if (!acceptsUnheld(pttOnly())) {
+      interim = ''
+      settled = ''
+      drop('push-to-talk only: key not held')
       return
     }
     let fresh = ''
@@ -820,6 +909,8 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
       stopped = true
       clearInterval(health)
       clearSilence()
+      offPtt()
+      if (pttTail) clearTimeout(pttTail)
       assemble.cancel()
       diag.running = false
       try {

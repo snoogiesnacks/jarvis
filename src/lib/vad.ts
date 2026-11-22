@@ -44,6 +44,8 @@ export type Vad = {
   /** Raise the trigger bar while JARVIS speaks, so his own playback leaking
    *  past echo cancellation does not register as the user talking. */
   setGuard: (on: boolean) => void
+  /** Push-to-talk: while on, the gate is open regardless of level. */
+  setForce: (on: boolean) => void
   live: () => boolean
   /** Live internals, for the diagnostics panel. */
   meter: () => { energy: number; floor: number; threshold: number; speaking: boolean }
@@ -77,12 +79,12 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
         ? 'Microphone access denied — voice input is unavailable.'
         : 'No microphone available.',
     )
-    return { stop: () => {}, setGuard: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
+    return { stop: () => {}, setGuard: () => {}, setForce: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
   }
 
   if (typeof MediaRecorder === 'undefined') {
     h.onError('This browser cannot record audio — voice input is unavailable.')
-    return { stop: () => {}, setGuard: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
+    return { stop: () => {}, setGuard: () => {}, setForce: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
   }
 
   const mime = pickMime()
@@ -99,6 +101,7 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
 
   let stopped = false
   let guard = false
+  let force = false
   let smoothEnergy = 0
   const gate = createNoiseGate()
   let floor = 0
@@ -171,7 +174,7 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
     smoothEnergy += (energy - smoothEnergy) * 0.5
     h.onLevel(Math.min(1, smoothEnergy * 12))
 
-    const s = gate.step(smoothEnergy, performance.now(), guard)
+    const s = gate.step(smoothEnergy, performance.now(), guard, force)
     floor = s.floor
     threshold = s.threshold
     speaking = s.speaking
@@ -199,6 +202,9 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
     },
     setGuard: (on) => {
       guard = on
+    },
+    setForce: (on) => {
+      force = on
     },
     live: () => !stopped,
     meter: () => ({ energy: smoothEnergy, floor, threshold, speaking }),

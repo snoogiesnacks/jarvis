@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { chooseMic, chosenMic, listMics } from '../lib/audio'
+import { pttOnly, setPttOnly } from '../lib/ptt'
 import type { MicReport } from '../lib/micSettings'
 
 /**
@@ -153,6 +154,14 @@ export function Diagnostics() {
             <option key={d.id} value={d.id}>{d.label}</option>
           ))}
         </select>
+      </div>
+
+      <div className="diag-row">
+        <span className="diag-k">push-to-talk only</span>
+        <label className="diag-v">
+          <input type="checkbox" checked={pttOnly()} onChange={(e) => setPttOnly(e.target.checked)} />{' '}
+          {pttOnly() ? 'ON: only heard while Space is held' : 'off: wake word or Space'}
+        </label>
       </div>
 
       <div className="diag-sec">SPEAKING · press T to test</div>

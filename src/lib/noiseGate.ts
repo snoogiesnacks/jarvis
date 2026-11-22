@@ -67,17 +67,18 @@ export function createNoiseGate(options: GateOptions = {}) {
   const o = { ...DEFAULTS, ...options }
   let floor = 0.01
   let threshold = 0
-  let armedAt = 0
+  let armedAt = -1 // -1 = not armed (0 is a valid time)
   let speaking = false
   let speechStartedAt = 0
   let lastLoud = 0
   let lastSample = -Infinity
+  let forced = false // push-to-talk held on the previous frame
   const samples: number[] = []
   const maxSamples = Math.max(1, Math.round(o.windowMs / o.sampleMs))
 
   const updateFloor = (energy: number, now: number) => {
     if (o.floorMode === 'ema') {
-      if (!speaking && armedAt === 0) {
+      if (!speaking && armedAt < 0) {
         const rate = energy > floor ? o.floorUp : o.floorDown
         floor += (energy - floor) * rate
       }
@@ -94,17 +95,55 @@ export function createNoiseGate(options: GateOptions = {}) {
     floor = Math.max(floor, o.minFloor)
   }
 
-  /** Feed one frame of smoothed RMS energy at time `now` (ms). */
-  function step(energy: number, now: number, guard = false): GateStep {
+  /** Feed one frame of smoothed RMS energy at time `now` (ms). `force` is push-to-talk:
+   *  held opens the gate regardless of level (arm, then start on the next frame);
+   *  released ends the segment at once. */
+  function step(energy: number, now: number, guard = false, force = false): GateStep {
     updateFloor(energy, now)
     threshold = floor * o.triggerOverFloor * (guard ? o.guardBoost : 1)
     const release = threshold * o.releaseRatio
     let event: GateEvent = null
     let startedAt = 0
+    const wasForced = forced
+    forced = force
+
+    if (force) {
+      if (!speaking) {
+        if (armedAt < 0) {
+          armedAt = now
+          event = 'arm'
+        } else {
+          speaking = true
+          speechStartedAt = armedAt
+          event = 'start'
+        }
+      } else if (now - speechStartedAt >= o.maxMs) {
+        startedAt = speechStartedAt
+        armedAt = -1
+        speaking = false
+        speechStartedAt = 0
+        event = 'end'
+      }
+      lastLoud = now
+      return { event, floor, threshold, speaking, startedAt }
+    }
+    if (wasForced) {
+      // Key released: the segment ends now, whatever the level.
+      if (speaking) {
+        startedAt = speechStartedAt
+        speaking = false
+        speechStartedAt = 0
+        event = 'end'
+      } else if (armedAt >= 0) {
+        event = 'discard'
+      }
+      armedAt = -1
+      return { event, floor, threshold, speaking, startedAt }
+    }
 
     if (!speaking) {
       if (energy > threshold) {
-        if (armedAt === 0) {
+        if (armedAt < 0) {
           armedAt = now
           event = 'arm'
         } else if (now - armedAt >= o.startMs) {
@@ -113,15 +152,15 @@ export function createNoiseGate(options: GateOptions = {}) {
           lastLoud = now
           event = 'start'
         }
-      } else if (armedAt !== 0) {
-        armedAt = 0
+      } else if (armedAt >= 0) {
+        armedAt = -1
         event = 'discard'
       }
     } else {
       if (energy > release) lastLoud = now
       if (now - lastLoud >= o.silenceMs || now - speechStartedAt >= o.maxMs) {
         startedAt = speechStartedAt
-        armedAt = 0
+        armedAt = -1
         speaking = false
         speechStartedAt = 0
         event = 'end'

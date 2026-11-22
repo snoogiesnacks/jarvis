@@ -146,7 +146,17 @@ export function transcribeWav(bytes) {
     await rec.decodeAsync(stream)
     const raw = rec.getResult(stream).text ?? ''
     const text = isNonSpeech(raw) ? '' : dedupeSentences(raw)
-    return { text, ms: Math.round(performance.now() - t0) }
+    const ms = Math.round(performance.now() - t0)
+    // Opt-in, for scored tests only: JARVIS_STT_LOG=<file> appends one JSON line per segment.
+    // Off by default; transcripts are what the user said, so never enable it in normal use.
+    if (process.env.JARVIS_STT_LOG) {
+      try {
+        fs.appendFileSync(process.env.JARVIS_STT_LOG, JSON.stringify({ time: new Date().toISOString(), ms, seconds: +(samples.length / 16000).toFixed(2), raw, text }) + '\n')
+      } catch {
+        /* a failed test log must never break transcription */
+      }
+    }
+    return { text, ms }
   })
   chain = job.catch(() => {})
   return job

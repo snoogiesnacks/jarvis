@@ -4,6 +4,7 @@ import { speakingNow, speakingSince } from './tts'
 import { startVad, type Vad } from './vad'
 import { acceptsUnheld, onPtt, pttHeld, pttOnly, routePtt, PTT_TAIL_MS } from './ptt'
 import { caps } from './capabilities'
+import { toWav16k } from './wav'
 
 /**
  * The voice loop.
@@ -399,7 +400,7 @@ export async function startVoice(h: VoiceHandlers): Promise<Voice> {
     )
     return { stop: () => {}, live: () => false }
   }
-  diag.engine = caps().stt ? 'elevenlabs' : 'browser'
+  diag.engine = caps().stt ? (caps().sttProvider === 'local' ? 'local whisper (offline)' : 'elevenlabs') : 'browser (cloud recogniser)'
   return caps().stt ? startElevenVoice(h) : startBrowserVoice(h)
 }
 
@@ -453,10 +454,12 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
     if (mode === 'deaf') return
     const t0 = performance.now()
     try {
+      // The offline transcriber takes 16 kHz WAV; Scribe takes the recording as is.
+      const body = caps().sttProvider === 'local' ? await toWav16k(blob) : blob
       const res = await fetch(`${BRIDGE_HTTP_URL}/stt`, {
         method: 'POST',
-        headers: { 'content-type': blob.type || 'audio/webm' },
-        body: blob,
+        headers: { 'content-type': body.type || 'audio/webm' },
+        body,
       })
       diag.idleMs = Math.round(performance.now() - t0)
       if (!res.ok) {

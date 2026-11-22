@@ -22,6 +22,7 @@ import { uiServer } from './ui.mjs'
 import { chromeAvailable, chromeServer } from './chrome.mjs'
 import { visionServer } from './vision.mjs'
 import { connectOllama } from './ollama.mjs'
+import { localSttEnabled, transcribeWav } from './stt-local.mjs'
 import { homedir, tmpdir } from 'node:os'
 import { readFileSync, realpathSync } from 'node:fs'
 import { readFile, realpath, stat } from 'node:fs/promises'
@@ -763,9 +764,11 @@ const handleRequest = async (req, res) => {
     // browser's own recogniser and voice, so a student with no keys still has
     // a working assistant.
     const voice = ttsProvider()
+    // Local Whisper (stt-local.mjs) wins over Scribe when it is on: offline, no key.
+    const sttProvider = localSttEnabled() ? 'local' : elevenKey() ? 'elevenlabs' : null
     res.writeHead(200, { ...cors, 'content-type': 'application/json' })
     return res.end(
-      JSON.stringify({ ok: true, tts: Boolean(voice), stt: Boolean(elevenKey()), voice }),
+      JSON.stringify({ ok: true, tts: Boolean(voice), stt: Boolean(sttProvider), sttProvider, voice }),
     )
   }
 
@@ -960,6 +963,33 @@ const handleRequest = async (req, res) => {
   // use, and a server-side transcriber cannot. Detecting that the user is
   // speaking at all is done locally with voice-activity detection, which never
   // touches this endpoint; this is only for the words.
+  if (req.method === 'POST' && req.url === '/stt' && localSttEnabled()) {
+    // Offline path: the browser sends 16 kHz mono WAV; nothing leaves this machine.
+    const chunks = []
+    let size = 0
+    for await (const chunk of req) {
+      chunks.push(chunk)
+      size += chunk.length
+      if (size > 8 * 1024 * 1024) {
+        req.destroy()
+        res.writeHead(413, cors)
+        return res.end('audio too large')
+      }
+    }
+    if (size < 1200) {
+      res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ text: '' }))
+    }
+    try {
+      const { text, ms } = await transcribeWav(Buffer.concat(chunks))
+      res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ text, ms, provider: 'local' }))
+    } catch (err) {
+      res.writeHead(err?.status ?? 500, cors)
+      return res.end(String(err?.message ?? err))
+    }
+  }
+
   if (req.method === 'POST' && req.url === '/stt') {
     const key = elevenKey()
     if (!key) {

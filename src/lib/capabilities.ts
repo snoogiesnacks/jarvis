@@ -18,8 +18,10 @@ import { BACKEND, BRIDGE_HTTP_URL, env } from '../config'
  */
 
 export type Capabilities = {
-  /** ElevenLabs speech-to-text (Scribe) is reachable via the bridge. */
+  /** Speech-to-text is reachable via the bridge's /stt. */
   stt: boolean
+  /** Which one: 'local' = offline Whisper on this machine (expects WAV); 'elevenlabs' = Scribe (cloud). */
+  sttProvider?: 'local' | 'elevenlabs' | null
   /** A cloud voice is reachable via the bridge's /tts. */
   tts: boolean
   /** Which cloud voice /tts uses, when `tts` is on. */
@@ -61,6 +63,8 @@ export async function probeCapabilities(): Promise<Capabilities> {
       const h = (await res.json()) as Partial<Capabilities>
       current = {
         stt: Boolean(h.stt),
+        // Older bridges report no provider; their /stt was always Scribe.
+        sttProvider: h.stt ? (h.sttProvider ?? 'elevenlabs') : null,
         tts: Boolean(h.tts),
         // Older bridges report no provider; their voice was always ElevenLabs.
         voice: h.tts ? (h.voice ?? 'elevenlabs') : null,

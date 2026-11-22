@@ -115,6 +115,8 @@ export function Diagnostics() {
       </div>
 
       <div className="diag-sec">LISTENING</div>
+      <Row k="speech engine" v={String((v as Record<string, unknown>).engine ?? '—')} bad={!String((v as Record<string, unknown>).engine ?? '').includes('offline')} />
+      <Row k="bridge check" v={String(w.__capsProbe ?? '—')} bad={!String(w.__capsProbe ?? '').includes('stt via')} />
       <Row k="recogniser" v={v.running ? 'running' : 'STOPPED'} bad={!v.running} />
       <Row k="sessions" v={String(v.sessions ?? 0)} />
       <Row

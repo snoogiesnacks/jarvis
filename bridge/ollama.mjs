@@ -92,7 +92,9 @@ export function connectOllama(socket) {
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'You are JARVIS in local chat mode. Help draft and summarize text. Preserve supplied facts and pending details. You have no tools.' },
+            // 2026-11-22: the shorter prompt ("You have no tools.") let gemma3:1b invent calendar entries,
+// emails and weather in 6/6 trials; this one declined 6/6 and still drafts from supplied text.
+{ role: 'system', content: 'You are JARVIS in local chat mode, running offline on this computer. You have no tools and no access to the calendar, email, files, accounts, the internet, the weather, the time or any live data. If asked for any of those, say plainly in one sentence that you cannot see it in local mode, and do not guess, invent or give examples of appointments, messages, names, numbers or results. You can help draft, rewrite and summarize text the user gives you; keep the facts they supply.' },
             ...history,
             user,
           ],

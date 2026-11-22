@@ -31,6 +31,8 @@ export type Capabilities = {
 /** Browser-only until the probe says otherwise. Safe default: the app works. */
 let current: Capabilities = { stt: false, tts: false }
 let probed = false
+/** What the boot-time /health check returned, for Diagnostics: the engine choice hangs on it. */
+let probeNote = 'not checked yet'
 
 /** The last known capabilities. Read synchronously by the voice and speech
  *  layers; accurate once `probeCapabilities` has resolved during boot. */
@@ -70,10 +72,13 @@ export async function probeCapabilities(): Promise<Capabilities> {
         voice: h.tts ? (h.voice ?? 'elevenlabs') : null,
       }
     }
-  } catch {
+    probeNote = res.ok ? `${BRIDGE_HTTP_URL}/health → ${current.stt ? `stt via ${current.sttProvider}` : 'no stt'}` : `${BRIDGE_HTTP_URL}/health → HTTP ${res.status}`
+  } catch (err) {
     // Bridge down or slow — stay on the browser engines rather than blocking
     // boot on a health check that is only an optimisation.
+    probeNote = `${BRIDGE_HTTP_URL}/health failed: ${String((err as Error)?.message ?? err)}`
   }
+  ;(globalThis as unknown as Record<string, unknown>).__capsProbe = probeNote
   probed = true
   return current
 }

@@ -560,6 +560,8 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
     },
   })
   diag.running = vad.live()
+  // Live floor/trigger for Diagnostics (press D): read-only, polled by the panel.
+  ;(window as unknown as Record<string, unknown>).__vadMeter = vad.meter
 
   // Raise the trigger bar exactly while he speaks. The mode is polled rather
   // than pushed because nothing in the app pushes phase changes here, and a

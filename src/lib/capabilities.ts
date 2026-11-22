@@ -18,8 +18,10 @@ import { BACKEND, BRIDGE_HTTP_URL, env } from '../config'
  */
 
 export type Capabilities = {
-  /** ElevenLabs speech-to-text (Scribe) is reachable via the bridge. */
+  /** Speech-to-text is reachable via the bridge's /stt. */
   stt: boolean
+  /** Which one: 'local' = offline Whisper on this machine (expects WAV); 'elevenlabs' = Scribe (cloud). */
+  sttProvider?: 'local' | 'elevenlabs' | null
   /** A cloud voice is reachable via the bridge's /tts. */
   tts: boolean
   /** Which cloud voice /tts uses, when `tts` is on. */
@@ -29,6 +31,8 @@ export type Capabilities = {
 /** Browser-only until the probe says otherwise. Safe default: the app works. */
 let current: Capabilities = { stt: false, tts: false }
 let probed = false
+/** What the boot-time /health check returned, for Diagnostics: the engine choice hangs on it. */
+let probeNote = 'not checked yet'
 
 /** The last known capabilities. Read synchronously by the voice and speech
  *  layers; accurate once `probeCapabilities` has resolved during boot. */
@@ -61,15 +65,20 @@ export async function probeCapabilities(): Promise<Capabilities> {
       const h = (await res.json()) as Partial<Capabilities>
       current = {
         stt: Boolean(h.stt),
+        // Older bridges report no provider; their /stt was always Scribe.
+        sttProvider: h.stt ? (h.sttProvider ?? 'elevenlabs') : null,
         tts: Boolean(h.tts),
         // Older bridges report no provider; their voice was always ElevenLabs.
         voice: h.tts ? (h.voice ?? 'elevenlabs') : null,
       }
     }
-  } catch {
+    probeNote = res.ok ? `${BRIDGE_HTTP_URL}/health → ${current.stt ? `stt via ${current.sttProvider}` : 'no stt'}` : `${BRIDGE_HTTP_URL}/health → HTTP ${res.status}`
+  } catch (err) {
     // Bridge down or slow — stay on the browser engines rather than blocking
     // boot on a health check that is only an optimisation.
+    probeNote = `${BRIDGE_HTTP_URL}/health failed: ${String((err as Error)?.message ?? err)}`
   }
+  ;(globalThis as unknown as Record<string, unknown>).__capsProbe = probeNote
   probed = true
   return current
 }

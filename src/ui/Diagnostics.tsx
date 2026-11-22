@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
+import { chooseMic, chosenMic, listMics } from '../lib/audio'
+import { pttOnly, setPttOnly } from '../lib/ptt'
+import type { MicReport } from '../lib/micSettings'
 
 /**
  * The "why can't he hear me / why can't I hear him" panel.
@@ -79,11 +82,19 @@ export function Diagnostics() {
     return () => clearInterval(id)
   }, [open])
 
+  const [mics, setMics] = useState<{ id: string; label: string }[]>([])
+  useEffect(() => {
+    if (open) listMics().then(setMics).catch(() => setMics([]))
+  }, [open])
+
   if (!open) return null
 
   const w = window as unknown as Record<string, unknown>
   const v = (w.__voice ?? {}) as Partial<VoiceDiag>
   const t = (w.__tts ?? {}) as Partial<TtsDiag>
+  const m = w.__mic as MicReport | undefined
+  const meter = (w.__vadMeter as (() => { energy: number; floor: number; threshold: number; speaking: boolean }) | undefined)?.()
+  const yn = (x: boolean | 'unknown' | undefined) => (x === true ? 'on' : x === false ? 'OFF' : 'unknown')
 
   // The two verdicts worth stating outright, rather than making you infer them
   // from the numbers underneath.
@@ -104,6 +115,8 @@ export function Diagnostics() {
       </div>
 
       <div className="diag-sec">LISTENING</div>
+      <Row k="speech engine" v={String((v as Record<string, unknown>).engine ?? '—')} bad={!String((v as Record<string, unknown>).engine ?? '').includes('offline')} />
+      <Row k="bridge check" v={String(w.__capsProbe ?? '—')} bad={!String(w.__capsProbe ?? '').includes('stt via')} />
       <Row k="recogniser" v={v.running ? 'running' : 'STOPPED'} bad={!v.running} />
       <Row k="sessions" v={String(v.sessions ?? 0)} />
       <Row
@@ -118,6 +131,40 @@ export function Diagnostics() {
       <Row k="last heard" v={v.heard ? `"${v.heard}" ${ago(v.heardAt ?? 0)}` : '— nothing yet'} bad={!v.heard} />
       <Row k="last drop" v={v.dropped || '—'} bad={Boolean(v.dropped)} />
       <Row k="error" v={v.lastError || '—'} bad={Boolean(v.lastError)} />
+
+      <div className="diag-sec">MICROPHONE · applied by the browser</div>
+      <Row k="device" v={m ? `${m.device}${m.fellBack ? ' (saved mic missing, using default)' : ''}` : 'not open yet'} bad={!m || m.fellBack} />
+      <Row k="echo cancel" v={yn(m?.echoCancellation)} bad={m?.echoCancellation !== true} />
+      <Row k="noise suppress" v={yn(m?.noiseSuppression)} bad={m?.noiseSuppression !== true} />
+      <Row k="auto gain" v={yn(m?.autoGainControl)} bad={m?.autoGainControl !== true} />
+      <Row
+        k="room / trigger"
+        v={meter ? `${meter.energy.toFixed(3)} now · floor ${meter.floor.toFixed(3)} · trigger ${meter.threshold.toFixed(3)}${meter.speaking ? ' · SPEECH' : ''}` : '—'}
+      />
+      <div className="diag-row">
+        <span className="diag-k">use mic</span>
+        <select
+          className="diag-v"
+          value={chosenMic()}
+          onChange={(e) => {
+            chooseMic(e.target.value)
+            location.reload()
+          }}
+        >
+          <option value="">system default</option>
+          {mics.map((d) => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="diag-row">
+        <span className="diag-k">push-to-talk only</span>
+        <label className="diag-v">
+          <input type="checkbox" checked={pttOnly()} onChange={(e) => setPttOnly(e.target.checked)} />{' '}
+          {pttOnly() ? 'ON: only heard while Space is held' : 'off: wake word or Space'}
+        </label>
+      </div>
 
       <div className="diag-sec">SPEAKING · press T to test</div>
       <Row k="engine" v={String(t.engine ?? 'system')} />

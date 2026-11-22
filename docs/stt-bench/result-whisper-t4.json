@@ -1,0 +1,240 @@
+{
+  "model": "whisper",
+  "threads": 4,
+  "loadMs": 757,
+  "rows": [
+    {
+      "condition": "clean",
+      "wer": 12.9,
+      "medianMs": 295,
+      "rtf": 0.095,
+      "samples": [
+        {
+          "ref": "Jarvis, what is on my calendar today?",
+          "text": "Jarvis, what is on my calendar today?",
+          "errors": 0
+        },
+        {
+          "ref": "Summarize the latest email from Halle.",
+          "text": "Summarize the latest email from Halle.",
+          "errors": 0
+        },
+        {
+          "ref": "Check whether Legend Clean Pro is online.",
+          "text": "Check whether Legend Clean Pro is online.",
+          "errors": 0
+        },
+        {
+          "ref": "Draft a reply saying I will call tomorrow at ten.",
+          "text": "Draft a reply saying I will call tomorrow at 10.",
+          "errors": 0
+        },
+        {
+          "ref": "Stop talking.",
+          "text": "Stop talking.",
+          "errors": 0
+        },
+        {
+          "ref": "Open the queue status for the corporate division.",
+          "text": "Open the Q status for the corporate division. Open the Q status for the corporate division.",
+          "errors": 9
+        },
+        {
+          "ref": "What is the weather in Brooklyn this afternoon?",
+          "text": "What is the weather in Brooklyn this afternoon?",
+          "errors": 0
+        },
+        {
+          "ref": "Remind me to review the Roku application on Friday.",
+          "text": "Remind me to review the Roku application on Friday.",
+          "errors": 0
+        },
+        {
+          "ref": "Turn the volume down a little.",
+          "text": "Turn the volume down a little.",
+          "errors": 0
+        },
+        {
+          "ref": "Read me the three most important tasks.",
+          "text": "Read me the three most important tasks.",
+          "errors": 0
+        }
+      ]
+    },
+    {
+      "condition": "tv -12dB",
+      "wer": 4.3,
+      "medianMs": 285,
+      "rtf": 0.089,
+      "samples": [
+        {
+          "ref": "Jarvis, what is on my calendar today?",
+          "text": "Jarvis, what is on my calendar today?",
+          "errors": 0
+        },
+        {
+          "ref": "Summarize the latest email from Halle.",
+          "text": "Summarize the latest email from halle.",
+          "errors": 0
+        },
+        {
+          "ref": "Check whether Legend Clean Pro is online.",
+          "text": "Check whether Legend Clean Pro is online.",
+          "errors": 0
+        },
+        {
+          "ref": "Draft a reply saying I will call tomorrow at ten.",
+          "text": "Draft a reply saying I will call tomorrow and 10.",
+          "errors": 1
+        },
+        {
+          "ref": "Stop talking.",
+          "text": "Re-stop talking.",
+          "errors": 1
+        },
+        {
+          "ref": "Open the queue status for the corporate division.",
+          "text": "Open the Q status for the corporate division.",
+          "errors": 1
+        },
+        {
+          "ref": "What is the weather in Brooklyn this afternoon?",
+          "text": "What is the weather in Brooklyn this afternoon?",
+          "errors": 0
+        },
+        {
+          "ref": "Remind me to review the Roku application on Friday.",
+          "text": "Remind me to review the Roku application on Friday.",
+          "errors": 0
+        },
+        {
+          "ref": "Turn the volume down a little.",
+          "text": "Turn the volume down a little.",
+          "errors": 0
+        },
+        {
+          "ref": "Read me the three most important tasks.",
+          "text": "Read me the three most important tasks.",
+          "errors": 0
+        }
+      ]
+    },
+    {
+      "condition": "tv -6dB",
+      "wer": 18.6,
+      "medianMs": 293,
+      "rtf": 0.095,
+      "samples": [
+        {
+          "ref": "Jarvis, what is on my calendar today?",
+          "text": "Jarvis. What is on my calendar today?",
+          "errors": 0
+        },
+        {
+          "ref": "Summarize the latest email from Halle.",
+          "text": "Summarize the latest email from hallelujah.",
+          "errors": 1
+        },
+        {
+          "ref": "Check whether Legend Clean Pro is online.",
+          "text": "check whether legend clean pro is online while for casters",
+          "errors": 3
+        },
+        {
+          "ref": "Draft a reply saying I will call tomorrow at ten.",
+          "text": "Draft for replacing I will call tomorrow and 10.",
+          "errors": 4
+        },
+        {
+          "ref": "Stop talking.",
+          "text": "Re-stop talking.",
+          "errors": 1
+        },
+        {
+          "ref": "Open the queue status for the corporate division.",
+          "text": "Open the Q status for the corporate division.",
+          "errors": 1
+        },
+        {
+          "ref": "What is the weather in Brooklyn this afternoon?",
+          "text": "What is the weather in Brooklyn this afternoon?",
+          "errors": 0
+        },
+        {
+          "ref": "Remind me to review the Roku application on Friday.",
+          "text": "Remind me to review the R application on Friday.",
+          "errors": 1
+        },
+        {
+          "ref": "Turn the volume down a little.",
+          "text": "Turn the volume down a little.",
+          "errors": 0
+        },
+        {
+          "ref": "Read me the three most important tasks.",
+          "text": "We made the three most important tasks.",
+          "errors": 2
+        }
+      ]
+    },
+    {
+      "condition": "tv 0dB",
+      "wer": 70,
+      "medianMs": 328,
+      "rtf": 0.106,
+      "samples": [
+        {
+          "ref": "Jarvis, what is on my calendar today?",
+          "text": "Jarvis and welcome to what is on my calendar today.",
+          "errors": 3
+        },
+        {
+          "ref": "Summarize the latest email from Halle.",
+          "text": "Summarized the latest email from child announced a new plan.",
+          "errors": 6
+        },
+        {
+          "ref": "Check whether Legend Clean Pro is online.",
+          "text": "check whether legendly crows online while forecasters",
+          "errors": 5
+        },
+        {
+          "ref": "Draft a reply saying I will call tomorrow at ten.",
+          "text": "I'll re-cast your listening, I will be all tomorrow, we'll be here.",
+          "errors": 10
+        },
+        {
+          "ref": "Stop talking.",
+          "text": "reach into our tent.",
+          "errors": 4
+        },
+        {
+          "ref": "Open the queue status for the corporate division.",
+          "text": "Open the Q-S status for the corporate division.",
+          "errors": 2
+        },
+        {
+          "ref": "What is the weather in Brooklyn this afternoon?",
+          "text": "What is the weather in over when this afternoon?",
+          "errors": 2
+        },
+        {
+          "ref": "Remind me to review the Roku application on Friday.",
+          "text": "I'm going to remind me to review the ROCO application. I'm going to expect at the airport.",
+          "errors": 11
+        },
+        {
+          "ref": "Turn the volume down a little.",
+          "text": "Turn the volume down the earboards this year.",
+          "errors": 4
+        },
+        {
+          "ref": "Read me the three most important tasks.",
+          "text": "We made the three most important tasks.",
+          "errors": 2
+        }
+      ]
+    }
+  ],
+  "rssLoadedMB": 273
+}

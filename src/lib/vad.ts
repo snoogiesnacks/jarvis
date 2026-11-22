@@ -1,4 +1,5 @@
 import { getMic } from './audio'
+import { createNoiseGate } from './noiseGate'
 
 /**
  * Voice-activity detection and segment capture.
@@ -43,46 +44,15 @@ export type Vad = {
   /** Raise the trigger bar while JARVIS speaks, so his own playback leaking
    *  past echo cancellation does not register as the user talking. */
   setGuard: (on: boolean) => void
+  /** Push-to-talk: while on, the gate is open regardless of level. */
+  setForce: (on: boolean) => void
   live: () => boolean
   /** Live internals, for the diagnostics panel. */
   meter: () => { energy: number; floor: number; threshold: number; speaking: boolean }
 }
 
-// ---------------------------------------------------------------------------
-// Tuning
-// ---------------------------------------------------------------------------
-
-/** How far above the noise floor the signal must rise to count as speech.
- *  The floor tracks the room, so this is a ratio, not an absolute level. */
-const TRIGGER_OVER_FLOOR = 2.6
-/** While he is speaking, demand this much more, so residual echo is ignored. */
-const GUARD_BOOST = 2.4
-/** Falling back below trigger×this ends the segment. Hysteresis stops a single
- *  dip mid-word from cutting a sentence in half. */
-const RELEASE_RATIO = 0.6
-
-/** Sustained energy for this long confirms speech rather than a knock or click. */
-const START_MS = 110
-/**
- * Quiet for this long ends the SEGMENT — which is no longer the same thing as
- * ending the turn.
- *
- * It used to be both, which is why this number was impossible to set: long
- * enough not to clip someone thinking mid-sentence meant every completed
- * question also sat waiting for nothing. Deciding whether the thought is
- * actually finished now happens a layer up, on the words rather than the
- * energy (see makeAssembler in voice.ts), so this can go back to being what it
- * should always have been — a cheap "have they stopped making noise" — and the
- * shorter window gets the transcript moving sooner.
- */
-const SILENCE_MS = 650
-/** Nobody speaks one segment for this long; cut it and transcribe what we have. */
-const MAX_MS = 20000
-
-/** The floor adapts slowly upward (a fan spinning up) and quickly downward (a
- *  door closing), so it settles to genuine ambient noise without chasing speech. */
-const FLOOR_UP = 0.0008
-const FLOOR_DOWN = 0.02
+// Gate tuning (trigger ratio, guard boost, hysteresis, 110 ms onset, 650 ms silence, 20 s cap) and the
+// noise floor now live in noiseGate.ts, which is unit-tested with synthetic TV-on/TV-off traces.
 
 function pickMime(): string {
   const candidates = [
@@ -109,12 +79,12 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
         ? 'Microphone access denied — voice input is unavailable.'
         : 'No microphone available.',
     )
-    return { stop: () => {}, setGuard: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
+    return { stop: () => {}, setGuard: () => {}, setForce: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
   }
 
   if (typeof MediaRecorder === 'undefined') {
     h.onError('This browser cannot record audio — voice input is unavailable.')
-    return { stop: () => {}, setGuard: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
+    return { stop: () => {}, setGuard: () => {}, setForce: () => {}, live: () => false, meter: () => ({ energy: 0, floor: 0, threshold: 0, speaking: false }) }
   }
 
   const mime = pickMime()
@@ -131,17 +101,16 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
 
   let stopped = false
   let guard = false
-  let floor = 0.01
+  let force = false
   let smoothEnergy = 0
+  const gate = createNoiseGate()
+  let floor = 0
   let threshold = 0
+  let speaking = false
 
   // Segment state.
   let recorder: MediaRecorder | null = null
   let parts: Blob[] = []
-  let armedAt = 0 // energy first rose; recording may be pre-rolling
-  let speaking = false
-  let speechStartedAt = 0
-  let lastLoud = 0
   let raf = 0
 
   const rms = (): number => {
@@ -176,11 +145,8 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
     parts = []
   }
 
-  const endSegment = () => {
+  const endSegment = (startedAt: number) => {
     const rec = recorder
-    const startedAt = speechStartedAt
-    speaking = false
-    speechStartedAt = 0
     if (!rec) return
     recorder = null
 
@@ -208,46 +174,16 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
     smoothEnergy += (energy - smoothEnergy) * 0.5
     h.onLevel(Math.min(1, smoothEnergy * 12))
 
-    // Adapt the floor only when we are confident this is not speech.
-    if (!speaking && armedAt === 0) {
-      const rate = smoothEnergy > floor ? FLOOR_UP : FLOOR_DOWN
-      floor += (smoothEnergy - floor) * rate
-      floor = Math.max(floor, 0.0015)
-    }
-
-    threshold = floor * TRIGGER_OVER_FLOOR * (guard ? GUARD_BOOST : 1)
-    const release = threshold * RELEASE_RATIO
-    const now = performance.now()
-
-    if (!speaking) {
-      if (smoothEnergy > threshold) {
-        if (armedAt === 0) {
-          // Onset: start recording immediately so the first phoneme is captured,
-          // before we have even confirmed this is speech. If it turns out to be
-          // a blip, the recorder is discarded and nothing was lost.
-          armedAt = now
-          startRecorder()
-        } else if (now - armedAt >= START_MS) {
-          // Confirmed. This is the moment barge-in fires.
-          speaking = true
-          speechStartedAt = armedAt
-          lastLoud = now
-          h.onStart()
-        }
-      } else if (armedAt !== 0) {
-        // Rose and fell without confirming — a knock, a click, a lip smack.
-        armedAt = 0
-        discardRecorder()
-      }
-    } else {
-      if (smoothEnergy > release) lastLoud = now
-      const quietFor = now - lastLoud
-      const runFor = now - speechStartedAt
-      if (quietFor >= SILENCE_MS || runFor >= MAX_MS) {
-        armedAt = 0
-        endSegment()
-      }
-    }
+    const s = gate.step(smoothEnergy, performance.now(), guard, force)
+    floor = s.floor
+    threshold = s.threshold
+    speaking = s.speaking
+    // Onset: start recording immediately so the first phoneme is captured,
+    // before it is confirmed as speech; a blip just discards the recorder.
+    if (s.event === 'arm') startRecorder()
+    else if (s.event === 'discard') discardRecorder()
+    else if (s.event === 'start') h.onStart() // confirmed: the barge-in moment
+    else if (s.event === 'end') endSegment(s.startedAt)
   }
 
   tick()
@@ -266,6 +202,9 @@ export async function startVad(h: VadHandlers): Promise<Vad> {
     },
     setGuard: (on) => {
       guard = on
+    },
+    setForce: (on) => {
+      force = on
     },
     live: () => !stopped,
     meter: () => ({ energy: smoothEnergy, floor, threshold, speaking }),

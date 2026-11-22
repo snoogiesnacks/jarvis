@@ -1,6 +1,39 @@
 # Local (offline) speech-to-text for JARVIS: evaluation
 
-2026-11-22 · Claude (CTO) · Status: **recommendation, nothing installed yet**
+2026-11-22 · Claude (CTO) · Status: **benchmarked. Recommendation revised to Whisper tiny.en (see Results). Not yet wired into JARVIS.**
+
+## Results (2026-11-22, measured on the laptop)
+The downloads were approved by the CEO. They were installed in an isolated folder (`%USERPROFILE%\jarvis-models\stt-bench`), so the JARVIS app's `node_modules` was not touched.
+- Moonshine archive: SHA-256 matches GitHub's recorded digest.
+- Whisper archive (2024 asset): GitHub has no recorded digest, so it was fetched over HTTPS from the official release. Its files are model data, not executable code.
+
+**Method.**
+- Windows' built-in voices produced the audio: David for 10 JARVIS commands, Zira reading a news script as the "TV".
+- The TV was mixed in at −12, −6 and 0 dB relative to the command.
+- sherpa-onnx-node 2.0.3, CPU, greedy decoding.
+- Word error rate (WER) was scored after lower-casing and normalising numbers.
+- Script: `stt-bench\bench.mjs`; raw results in `result-*.json`.
+
+| Model | Threads | Load | RAM added | Clean WER | TV −12 dB | TV −6 dB | TV 0 dB | Median latency (≈3 s command) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Moonshine tiny en (quantized, 28 MB) | 4 | 0.74 s | +123 MB | 7.1% | 21.4% | **40.0%** ✗ | 154% ✗ | **~0.08 s** |
+| **Whisper tiny.en (int8, 113 MB download)** | 4 | 0.76 s | +273 MB | 12.9%* | **4.3%** | **18.6%** ✓ | 70% ✗ | 0.29 s |
+| **Whisper tiny.en (int8)** | **2** | 0.70 s | +271 MB | 12.9%* | 4.3% | 18.6% ✓ | 70% ✗ | **0.35 s** |
+
+\* All of Whisper's clean-condition error is one hallucination: it repeated a whole sentence (*"Open the Q status for the corporate division."* twice), a known Whisper failure mode. The other 9 commands were nearly exact, and clean WER without the repeat would be about 1.4%.
+
+**What the transcripts show**
+- Moonshine is very fast and clean on quiet speech. With a TV, it transcribes the TV's words as part of the command ("…Now it's a new plan", "…expect at the airport").
+- Whisper resists the TV much better.
+- Both models fail when the TV is as loud as the speaker (0 dB). Neither push-to-talk nor a gate fixes that; only a closer or better microphone does.
+- Name errors ("Hally", "hallelujah", "R application" for Roku) are what the repo's existing `src/lib/vocabulary.ts` correction layer is built to repair.
+
+**Revised recommendation: Whisper tiny.en int8 on 2 threads.**
+- It meets the targets: ≤30% WER at −6 dB TV, latency well under 1.5 s, and RAM +271 MB (target ≤300 MB).
+- Two guards ship with it: a duplicate-sentence filter, which removes the repeat hallucination, and the existing vocabulary correction.
+- Moonshine tiny stays as a low-RAM fallback for quiet rooms.
+
+**Caveat:** synthetic voices are cleaner than a real person in a real room. The 10-minute real-room check with the CEO is still required before calling this done.
 
 ## Why this matters
 On the CEO's laptop the bridge reports `stt:false`, so JARVIS uses the browser's built-in `SpeechRecognition`. That has two problems:
